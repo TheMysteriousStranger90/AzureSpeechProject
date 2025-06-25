@@ -1,9 +1,247 @@
-﻿<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        x:Class="AzureSpeechProject.Views.SettingsView"
-        Title="SettingsView">
-    Welcome to Avalonia!
-</Window>
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:AzureSpeechProject.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="AzureSpeechProject.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.header">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+
+        <Style Selector="TextBlock.label">
+            <Setter Property="Margin" Value="0,8,0,4" />
+            <Setter Property="FontWeight" Value="Medium" />
+        </Style>
+
+        <Style Selector="TextBlock.description">
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,2,0,8" />
+        </Style>
+
+        <Style Selector="Border.section">
+            <Setter Property="Padding" Value="20" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#CCCCCC" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="BoxShadow" Value="0 2 6 0 #20000000" />
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="Margin" Value="0,4,0,8" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="MinWidth" Value="200" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+
+        <Style Selector="TextBox">
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Margin" Value="0,4,0,8" />
+            <Setter Property="MinWidth" Value="300" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#0078D4" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="MinWidth" Value="120" />
+        </Style>
+
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#F0F0F0" />
+            <Setter Property="Foreground" Value="#333333" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="MinWidth" Value="120" />
+            <Setter Property="BorderBrush" Value="#CCCCCC" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer>
+        <Grid Margin="20" MaxWidth="900">
+            <StackPanel>
+                <!-- Azure Speech Service Settings -->
+                <Border Classes="section">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto">
+                            <PathIcon Grid.Column="0"
+                                      Data="M18,13.5L21,17.25L18,21V18H3V13.5H18M18,4L15,7.75L18,11.5V8.5H21V4H18M3,8.5H15V11.5H3V8.5Z"
+                                      Width="20" Height="20" Foreground="#0078D4" Margin="0,0,8,0"
+                                      VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="header" Text="Azure Speech Service Settings" />
+                        </Grid>
+
+                        <TextBlock Classes="description"
+                                   Text="Configure your Azure Speech Service credentials. These are required to use speech recognition and translation features." />
+
+                        <TextBlock Classes="label" Text="Azure Speech Region" />
+                        <TextBox Text="{Binding Region}" Watermark="e.g., westeurope, eastus" />
+                        <TextBlock Classes="description"
+                                   Text="The Azure region where your Speech Service is deployed. Find this in the Azure portal." />
+
+                        <TextBlock Classes="label" Text="Azure Speech Key" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Text="{Binding Key}"
+                                     PasswordChar="{Binding ShowKey, Converter={x:Static BoolConverters.Not}, ConverterParameter='*'}"
+                                     Watermark="Enter your Azure Speech Service key" />
+                            <Button Grid.Column="1"
+                                    Command="{Binding ToggleShowKeyCommand}"
+                                    Margin="8,4,0,8" Padding="8,8" VerticalAlignment="Top" />
+                        </Grid>
+                        <TextBlock Classes="description"
+                                   Text="The access key for your Azure Speech Service. Keep this secure and never share it." />
+
+                        <TextBlock Classes="label" Text="Speech Recognition Language" />
+                        <ComboBox ItemsSource="{Binding AvailableSpeechLanguages}"
+                                  SelectedItem="{Binding SelectedSpeechLanguage}" />
+                        <TextBlock Classes="description" Text="The language that will be used for speech recognition." />
+                    </StackPanel>
+                </Border>
+
+                <!-- Audio Settings -->
+                <Border Classes="section">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto">
+                            <PathIcon Grid.Column="0"
+                                      Data="M12,3V12.26C11.5,12.09 11,12 10.5,12C8,12 6,14 6,16.5C6,19 8,21 10.5,21C13,21 15,19 15,16.5V6H19V3H12Z"
+                                      Width="20" Height="20" Foreground="#0078D4" Margin="0,0,8,0"
+                                      VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="header" Text="Audio Settings" />
+                        </Grid>
+
+                        <TextBlock Classes="description"
+                                   Text="Configure audio capture settings. For best results with Azure Speech Services, use 16kHz, 16-bit, mono audio." />
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" Margin="0,8">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Sample Rate:" VerticalAlignment="Center"
+                                       Margin="0,0,16,0" />
+                            <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding SampleRates}"
+                                      SelectedItem="{Binding SelectedSampleRate}" MinWidth="150"
+                                      HorizontalAlignment="Left" />
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Hz" VerticalAlignment="Center"
+                                       Margin="8,0,0,0" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Bits Per Sample:" VerticalAlignment="Center"
+                                       Margin="0,12,16,0" />
+                            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding BitsPerSample}"
+                                      SelectedItem="{Binding SelectedBitsPerSample}" MinWidth="150"
+                                      HorizontalAlignment="Left" Margin="0,12,0,0" />
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="bits" VerticalAlignment="Center"
+                                       Margin="8,12,0,0" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Channels:" VerticalAlignment="Center"
+                                       Margin="0,12,16,0" />
+                            <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Channels}"
+                                      SelectedItem="{Binding SelectedChannels}" MinWidth="150"
+                                      HorizontalAlignment="Left" Margin="0,12,0,0" />
+                            <TextBlock Grid.Row="2" Grid.Column="2"
+                                       Text="{Binding SelectedChannels, Converter={x:Static ObjectConverters.IsNotNull}, ConverterParameter='mono|stereo'}"
+                                       VerticalAlignment="Center" Margin="8,12,0,0" />
+                        </Grid>
+
+                        <TextBlock Classes="description"
+                                   Text="Note: 16kHz, 16-bit, mono (1 channel) provides the best results with Azure Speech Services. Higher quality audio requires more bandwidth but may not improve accuracy." />
+                    </StackPanel>
+                </Border>
+
+                <!-- Output Settings -->
+                <Border Classes="section">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto">
+                            <PathIcon Grid.Column="0"
+                                      Data="M14,17H12V15H10V13H12V15H14M14,9H12V11H14V13H12V11H10V9H12V7H10V5H12V7H14M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"
+                                      Width="20" Height="20" Foreground="#0078D4" Margin="0,0,8,0"
+                                      VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="header" Text="Output File Settings" />
+                        </Grid>
+
+                        <TextBlock Classes="description"
+                                   Text="Configure where transcription and translation files will be saved." />
+
+                        <TextBlock Classes="label" Text="Output Directory" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Text="{Binding OutputDirectory}" />
+                            <Button Grid.Column="1" Content="Browse..."
+                                    Command="{Binding BrowseCommand}"
+                                    Margin="8,4,0,8" Padding="12,8" VerticalAlignment="Top" />
+                        </Grid>
+                        <TextBlock Classes="description"
+                                   Text="The directory where transcripts and translations will be saved." />
+                    </StackPanel>
+                </Border>
+
+                <!-- Azure Best Practices Info -->
+                <Border Classes="section" Background="#EFF6FC" BorderBrush="#0078D4">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto">
+                            <PathIcon Grid.Column="0"
+                                      Data="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                                      Width="20" Height="20" Foreground="#0078D4" Margin="0,0,8,0"
+                                      VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="header" Text="Azure Speech Services Best Practices"
+                                       Foreground="#0078D4" />
+                        </Grid>
+
+                        <StackPanel Margin="0,8,0,0" Spacing="8">
+                            <TextBlock TextWrapping="Wrap">
+                                <Run>• </Run><Run FontWeight="SemiBold">Secure your keys: </Run>
+                                <Run>Never share your Azure Speech Service keys or check them into source control.</Run>
+                            </TextBlock>
+
+                            <TextBlock TextWrapping="Wrap">
+                                <Run>• </Run><Run FontWeight="SemiBold">Resource optimization: </Run>
+                                <Run>The Speech SDK manages connections efficiently, but be sure to dispose of resources when done.</Run>
+                            </TextBlock>
+
+                            <TextBlock TextWrapping="Wrap">
+                                <Run>• </Run><Run FontWeight="SemiBold">Audio quality: </Run>
+                                <Run>Use a good quality microphone in a quiet environment for best recognition results.</Run>
+                            </TextBlock>
+
+                            <TextBlock TextWrapping="Wrap">
+                                <Run>• </Run><Run FontWeight="SemiBold">Throttling awareness: </Run>
+                                <Run>Be aware of Azure Speech Service quota limits, especially for continuous recognition.</Run>
+                            </TextBlock>
+
+                            <TextBlock TextWrapping="Wrap">
+                                <Run>• </Run><Run FontWeight="SemiBold">Network considerations: </Run>
+                                <Run>Ensure stable internet connection for reliable speech recognition and translation.</Run>
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Action Buttons -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+                    <Button Classes="secondary" Content="Reset to Defaults" Command="{Binding ResetCommand}" />
+                    <Button Classes="primary" Content="Save Settings" Command="{Binding SaveCommand}">
+                        <Button.Styles>
+                            <Style Selector="Button.primary">
+                                <Setter Property="Content" Value="Save Settings" />
+                            </Style>
+                            <Style Selector="Button.primary:pointerover">
+                                <Setter Property="Content" Value="Save Settings" />
+                                <Setter Property="Background" Value="#106EBE" />
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

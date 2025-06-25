@@ -1,4 +1,4 @@
-﻿namespace AzureSpeechToTextApp.Models;
+﻿namespace AzureSpeechProject.Models;
 
 public enum TranscriptFormat
 {

@@ -1,4 +1,4 @@
-﻿namespace AzureSpeechToTextApp.Constants;
+﻿namespace AzureSpeechProject.Constants;
 
 public class SecretConstants
 {

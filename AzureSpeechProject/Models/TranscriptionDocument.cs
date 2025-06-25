@@ -1,4 +1,8 @@
-﻿namespace AzureSpeechToTextApp.Models;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace AzureSpeechProject.Models;
 
 public class TranscriptionDocument
 {

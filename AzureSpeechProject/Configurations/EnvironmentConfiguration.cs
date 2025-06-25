@@ -1,6 +1,7 @@
-﻿using DotNetEnv;
+﻿using System.IO;
+using DotNetEnv;
 
-namespace AzureSpeechToTextApp.Configurations;
+namespace AzureSpeechProject.Configurations;
 
 public class EnvironmentConfiguration : IEnvironmentConfiguration
 {

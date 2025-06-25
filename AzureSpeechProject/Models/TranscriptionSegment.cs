@@ -1,4 +1,6 @@
-﻿namespace AzureSpeechToTextApp.Models;
+﻿using System;
+
+namespace AzureSpeechProject.Models;
 
 
 public class TranscriptionSegment

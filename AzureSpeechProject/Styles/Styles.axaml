@@ -1,10 +1,301 @@
 ﻿<Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Design.PreviewWith>
-        <Border Padding="20">
-            <!-- Add Controls for Previewer Here -->
-        </Border>
-    </Design.PreviewWith>
+    
+    <!-- Azure Color Resources -->
+    <Style>
+        <Style.Resources>
+            <!-- Primary Colors -->
+            <SolidColorBrush x:Key="AzurePrimaryBlue" Color="#0078D4"/>
+            <SolidColorBrush x:Key="AzureDarkBlue" Color="#106EBE"/>
+            <SolidColorBrush x:Key="AzureRed" Color="#E32036"/>
+            <SolidColorBrush x:Key="AzureGreen" Color="#107C10"/>
+            
+            <!-- Neutral Colors -->
+            <SolidColorBrush x:Key="BackgroundBrush" Color="#F5F5F5"/>
+            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="BorderBrush" Color="#CCCCCC"/>
+            <SolidColorBrush x:Key="TextBrush" Color="#323130"/>
+            <SolidColorBrush x:Key="SecondaryTextBrush" Color="#605E5C"/>
+            <SolidColorBrush x:Key="DisabledTextBrush" Color="#A19F9D"/>
+            
+            <!-- Accent Colors -->
+            <SolidColorBrush x:Key="InfoBackgroundBrush" Color="#EFF6FC"/>
+            <SolidColorBrush x:Key="RecordingOverlayBrush" Color="#80000000"/>
+        </Style.Resources>
+    </Style>
+    
+    <!-- Typography -->
+    <Style Selector="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    </Style>
+    
+    <Style Selector="TextBlock.header">
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    </Style>
+    
+    <Style Selector="TextBlock.label">
+        <Setter Property="Margin" Value="0,8,0,4"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    </Style>
+    
+    <Style Selector="TextBlock.description">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Margin" Value="0,2,0,8"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+    </Style>
+    
+    <!-- Containers -->
+    <Style Selector="Border.card">
+        <Setter Property="Padding" Value="20"/>
+        <Setter Property="Margin" Value="0,0,0,16"/>
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="BoxShadow" Value="0 2 6 0 #20000000"/>
+    </Style>
+    
+    <Style Selector="Border.transcript-container">
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="BoxShadow" Value="0 2 6 0 #20000000"/>
+    </Style>
+    
+    <Style Selector="Border.transcript-header">
+        <Setter Property="Background" Value="#F0F0F0"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="Padding" Value="16,12"/>
+    </Style>
+    
+    <Style Selector="Border.transcript-header > TextBlock">
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    </Style>
+    
+    <!-- Controls -->
+    <Style Selector="TextBox">
+        <Setter Property="Padding" Value="12,8"/>
+        <Setter Property="Margin" Value="0,4,0,8"/>
+        <Setter Property="MinWidth" Value="300"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+    </Style>
+    
+    <Style Selector="TextBox.transcript">
+        <Setter Property="Padding" Value="16"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="AcceptsReturn" Value="True"/>
+        <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="FontFamily" Value="Consolas, Menlo, Monaco, 'Courier New', monospace"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="Margin" Value="0"/>
+    </Style>
+    
+    <!-- Buttons -->
+    <Style Selector="Button.primary">
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Padding" Value="16,8"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="MinWidth" Value="120"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.2"/>
+            </Transitions>
+        </Setter>
+    </Style>
+    
+    <Style Selector="Button.primary:pointerover">
+        <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}"/>
+    </Style>
+    
+    <Style Selector="Button.primary:pressed">
+        <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}"/>
+        <Setter Property="Opacity" Value="0.9"/>
+    </Style>
+    
+    <Style Selector="Button.secondary">
+        <Setter Property="Background" Value="#F0F0F0"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="Padding" Value="16,8"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="MinWidth" Value="120"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.2"/>
+            </Transitions>
+        </Setter>
+    </Style>
+    
+    <Style Selector="Button.secondary:pointerover">
+        <Setter Property="Background" Value="#E0E0E0"/>
+    </Style>
+    
+    <Style Selector="Button.action">
+        <Setter Property="Padding" Value="16,8"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="MinWidth" Value="120"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.1"/>
+            </Transitions>
+        </Setter>
+    </Style>
+    
+    <Style Selector="Button.action > StackPanel">
+        <Setter Property="Orientation" Value="Horizontal"/>
+        <Setter Property="Spacing" Value="8"/>
+    </Style>
+    
+    <Style Selector="Button.action:pressed">
+        <Setter Property="Opacity" Value="0.9"/>
+    </Style>
+    
+    <!-- Azure themed action buttons -->
+    <Style Selector="Button.azure-start">
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}"/>
+    </Style>
+    
+    <Style Selector="Button.azure-start:pointerover">
+        <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}"/>
+    </Style>
+    
+    <Style Selector="Button.azure-stop">
+        <Setter Property="Background" Value="{DynamicResource AzureRed}"/>
+    </Style>
+    
+    <Style Selector="Button.azure-stop:pointerover">
+        <Setter Property="Background" Value="#C11B2D"/>
+    </Style>
+    
+    <!-- ComboBox Azure theme -->
+    <Style Selector="ComboBox">
+        <Setter Property="Margin" Value="0,4,0,8"/>
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="MinWidth" Value="200"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
 
-    <!-- Add Styles Here -->
+    <Style Selector="ComboBox:pointerover /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}"/>
+    </Style>
+
+    <Style Selector="ComboBox:pressed /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}"/>
+    </Style>
+
+    <Style Selector="ComboBoxItem">
+        <Setter Property="Padding" Value="12,8"/>
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}"/>
+        <Setter Property="TextBlock.Foreground" Value="White"/>
+    </Style>
+
+    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}"/>
+        <Setter Property="TextBlock.Foreground" Value="White"/>
+    </Style>
+
+    <Style Selector="ComboBox /template/ PathIcon">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <Style Selector="ComboBox:focus-within /template/ Border#Background">
+        <Setter Property="BorderBrush" Value="White"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    
+    <!-- CheckBox Azure theme -->
+    <Style Selector="CheckBox">
+        <Setter Property="Margin" Value="0,0,8,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="CheckBox /template/ Border#NormalRectangle">
+        <Setter Property="BorderBrush" Value="{DynamicResource AzurePrimaryBlue}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="2"/>
+        <Setter Property="Width" Value="18"/>
+        <Setter Property="Height" Value="18"/>
+    </Style>
+
+    <Style Selector="CheckBox:pointerover /template/ Border#NormalRectangle">
+        <Setter Property="BorderBrush" Value="{DynamicResource AzureDarkBlue}"/>
+        <Setter Property="Background" Value="#10000000"/>
+    </Style>
+
+    <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AzurePrimaryBlue}"/>
+    </Style>
+
+    <Style Selector="CheckBox:checked:pointerover /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AzureDarkBlue}"/>
+    </Style>
+
+    <Style Selector="CheckBox:checked /template/ Path#CheckGlyph">
+        <Setter Property="Fill" Value="White"/>
+    </Style>
+    
+    <!-- Recording Animation -->
+    <Style Selector="Ellipse.recording-pulse">
+        <Style.Animations>
+            <Animation Duration="0:0:1" IterationCount="INFINITE">
+                <KeyFrame Cue="0%">
+                    <Setter Property="Opacity" Value="1.0"/>
+                </KeyFrame>
+                <KeyFrame Cue="50%">
+                    <Setter Property="Opacity" Value="0.3"/>
+                </KeyFrame>
+                <KeyFrame Cue="100%">
+                    <Setter Property="Opacity" Value="1.0"/>
+                </KeyFrame>
+            </Animation>
+        </Style.Animations>
+    </Style>
 </Styles>

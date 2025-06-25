@@ -1,20 +1,80 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:AzureSpeechProject.ViewModels"
+        xmlns:views="using:AzureSpeechProject.Views"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
         x:Class="AzureSpeechProject.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
-        Title="AzureSpeechProject">
+        Title="Azure Speech Recognition and Translation"
+        WindowStartupLocation="CenterScreen"
+        Width="900" Height="600"
+        MinWidth="700" MinHeight="500"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-
+    <Window.Styles>
+        <Style Selector="Window">
+            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+        </Style>
+        <Style Selector="TabControl">
+            <Setter Property="Margin" Value="0 40 0 0"/>
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="16 8"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.StatusBar">
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+    </Window.Styles>
+    
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Custom title bar -->
+        <Grid Grid.Row="0" Height="40" ColumnDefinitions="Auto,*,Auto" Background="{DynamicResource AzurePrimaryBlue}">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                <TextBlock Text="Azure Speech Recognition and Translation" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
+            </StackPanel>
+            
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch" HorizontalAlignment="Right">
+                <Button Content="🗕" Background="Transparent" BorderThickness="0" Foreground="White" 
+                        VerticalAlignment="Stretch" Width="46" Click="MinimizeButton_Click"/>
+                <Button x:Name="MaximizeButton" Content="🗖" Background="Transparent" BorderThickness="0" Foreground="White" 
+                        VerticalAlignment="Stretch" Width="46" Click="MaximizeButton_Click"/>
+                <Button Content="🗙" Background="Transparent" BorderThickness="0" Foreground="White" 
+                        VerticalAlignment="Stretch" Width="46" Click="CloseButton_Click"/>
+            </StackPanel>
+        </Grid>
+        
+        <!-- Main content -->
+        <TabControl Grid.Row="1" Margin="0,0,0,0">
+            <TabItem Header="Transcription">
+                <views:TranscriptionView DataContext="{Binding TranscriptionViewModel}"/>
+            </TabItem>
+            <TabItem Header="Settings">
+                <views:SettingsView DataContext="{Binding SettingsViewModel}"/>
+            </TabItem>
+        </TabControl>
+        
+        <!-- Status bar -->
+        <Border Grid.Row="2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Background="#F0F0F0">
+            <Grid ColumnDefinitions="*,Auto" Margin="12,8">
+                <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" Classes="StatusBar"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Powered by " Classes="StatusBar" VerticalAlignment="Center"/>
+                    <TextBlock Text="Azure Speech Services" Classes="StatusBar" VerticalAlignment="Center" 
+                               Foreground="{DynamicResource AzurePrimaryBlue}" FontWeight="SemiBold"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
 </Window>

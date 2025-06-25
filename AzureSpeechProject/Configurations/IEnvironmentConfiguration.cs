@@ -1,4 +1,4 @@
-﻿namespace AzureSpeechToTextApp.Configurations;
+﻿namespace AzureSpeechProject.Configurations;
 
 public interface IEnvironmentConfiguration
 {
