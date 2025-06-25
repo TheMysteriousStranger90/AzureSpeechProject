@@ -4,6 +4,7 @@ using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using AzureSpeechProject.Helpers;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
@@ -24,8 +25,8 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
     [Reactive] public string CurrentTranscript { get; set; } = string.Empty;
     [Reactive] public string CurrentTranslation { get; set; } = string.Empty;
     [Reactive] public bool EnableTranslation { get; set; }
-    [Reactive] public string SelectedTargetLanguage { get; set; } = "es";
-    [Reactive] public string TranslationHeader { get; set; } = "Translation (Spanish)";
+    [Reactive] public string SelectedTargetLanguage { get; set; } = "it";
+    [Reactive] public string TranslationHeader { get; set; } = "Translation (Italian)";
     [Reactive] public string Status { get; set; } = "Ready to record";
     [Reactive] public TranscriptFormat SelectedOutputFormat { get; set; } = TranscriptFormat.Text;
 
@@ -56,7 +57,7 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
     public bool CanClear => _canClear.Value;
 
     private TranscriptionDocument _document = new();
-    
+
     public TranscriptionViewModel(
         ILogger logger,
         TranscriptionService transcriptionService,
@@ -95,6 +96,24 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
             _canClear = canClear.ToProperty(this, x => x.CanClear);
             ClearCommand = ReactiveCommand.Create(ClearTranscript, canClear);
 
+            ToggleTranslationCommand = ReactiveCommand.Create(() =>
+            {
+                try
+                {
+                    EnableTranslation = !EnableTranslation;
+                    _logger.Log($"Translation {(EnableTranslation ? "enabled" : "disabled")}");
+
+                    Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Status = EnableTranslation ? "Translation enabled" : "Translation disabled";
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"Error toggling translation: {ex.Message}");
+                }
+            });
+
             this.WhenAnyValue(x => x.SelectedTargetLanguage)
                 .Subscribe(lang =>
                 {
@@ -114,6 +133,7 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
                         };
 
                         TranslationHeader = $"Translation ({languageNames.GetValueOrDefault(lang, lang)})";
+                        _logger.Log($"Language changed to: {lang}");
                     }
                     catch (Exception ex)
                     {
@@ -149,19 +169,6 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
                 }
             });
 
-            ToggleTranslationCommand = ReactiveCommand.Create(() =>
-            {
-                try
-                {
-                    EnableTranslation = !EnableTranslation;
-                    _logger.Log($"Translation {(EnableTranslation ? "enabled" : "disabled")}");
-                }
-                catch (Exception ex)
-                {
-                    _logger.Log($"Error toggling translation: {ex.Message}");
-                }
-            });
-
             _logger.Log("TranscriptionViewModel constructor completed successfully");
         }
         catch (Exception ex)
@@ -173,47 +180,118 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
 
     private void HandleTranscriptionUpdated(object? sender, TranscriptionSegment segment)
     {
-        MainThreadHelper.InvokeOnMainThread(() =>
+        try
         {
-            CurrentTranscript += $"[{segment.Timestamp:HH:mm:ss}] {segment.Text}{Environment.NewLine}";
-
-            if (EnableTranslation)
+            _logger.Log($"HandleTranscriptionUpdated called with: {segment.Text}");
+        
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                _translationService.TranslateText(segment.Text, SelectedTargetLanguage);
-            }
-        });
+                try
+                {
+                    _logger.Log("Updating UI thread with transcription");
+                
+                    var newText = $"[{segment.Timestamp:HH:mm:ss}] {segment.Text}{Environment.NewLine}";
+                    CurrentTranscript += newText;
+
+                    this.RaisePropertyChanged(nameof(CurrentTranscript));
+
+                    _logger.Log($"CurrentTranscript updated. New value: '{CurrentTranscript}'");
+
+                    Status = $"Transcribing... (Segments: {_document.Segments.Count})";
+
+                    if (EnableTranslation)
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await _translationService.TranslateText(segment.Text, SelectedTargetLanguage);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Log($"Error in translation: {ex.Message}");
+                            }
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"Error updating UI with transcription: {ex.Message}");
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.Log($"Error in HandleTranscriptionUpdated: {ex.Message}");
+        }
     }
 
     private void HandleTranslationUpdated(object? sender, TranslationResult result)
     {
-        MainThreadHelper.InvokeOnMainThread(() =>
+        try
         {
-            CurrentTranslation += $"[{result.Timestamp:HH:mm:ss}] {result.TranslatedText}{Environment.NewLine}";
-        });
+            _logger.Log($"Received translation result: '{result.TranslatedText}'");
+
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    var newTranslation = $"[{result.Timestamp:HH:mm:ss}] {result.TranslatedText}{Environment.NewLine}";
+                    CurrentTranslation += newTranslation;
+
+                    this.RaisePropertyChanged(nameof(CurrentTranslation));
+
+                    _logger.Log($"Updated UI with translation: '{result.TranslatedText}'");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"Error updating UI with translation: {ex.Message}");
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.Log($"Error in HandleTranslationUpdated: {ex.Message}");
+        }
     }
 
     private async Task StartRecordingAsync()
     {
         try
         {
+            _logger.Log("Starting recording process...");
+
             _document = new TranscriptionDocument();
             IsRecording = true;
-            Status = "Recording in progress...";
+            Status = "Starting recording...";
+
+            CurrentTranscript = string.Empty;
+            CurrentTranslation = string.Empty;
 
             var options = new TranscriptionOptions
             {
+                Language = "en-US",
                 OutputFormat = SelectedOutputFormat,
                 IncludeTimestamps = true,
                 DetectSpeakers = false,
-                MaxDurationSeconds = 3600
+                MaxDurationSeconds = 3600,
+                EnableProfanityFilter = true,
+                EnableWordLevelTimestamps = true
             };
 
             if (EnableTranslation)
             {
+                Status = "Initializing translation...";
                 await _translationService.InitializeAsync(SelectedTargetLanguage);
             }
 
+            Status = "Recording in progress... Speak now!";
             await _transcriptionService.StartTranscriptionAsync(options);
+
+            _logger.Log("Recording started successfully");
+        
+            // REMOVED: Don't call stop immediately!
+            // The recording should continue until user clicks stop
         }
         catch (Exception ex)
         {
@@ -227,15 +305,23 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
     {
         try
         {
+            _logger.Log("Stopping recording...");
+            Status = "Stopping recording...";
+
             await _transcriptionService.StopTranscriptionAsync();
             _document = _transcriptionService.GetTranscriptionDocument();
             IsRecording = false;
-            Status = "Recording stopped. You can save the transcript now.";
+
+            var segmentCount = _document.Segments.Count;
+            Status = $"Recording stopped. {segmentCount} segments captured. You can save the transcript now.";
+
+            _logger.Log($"Recording stopped successfully. Segments: {segmentCount}");
         }
         catch (Exception ex)
         {
             Status = $"Error stopping recording: {ex.Message}";
             _logger.Log($"Error stopping recording: {ex.Message}");
+            IsRecording = false;
         }
     }
 
@@ -243,6 +329,8 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
     {
         try
         {
+            Status = "Saving transcript...";
+
             var filePath = await _fileService.SaveTranscriptAsync(_document, SelectedOutputFormat);
             Status = $"Transcript saved to: {filePath}";
 
@@ -260,15 +348,22 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
                 {
                     if (line.Length > 10 && line[0] == '[' && line[9] == ']')
                     {
-                        var timestamp = DateTime.ParseExact(line.Substring(1, 8), "HH:mm:ss", null);
-                        var text = line.Substring(11);
-
-                        translationDocument.Segments.Add(new TranscriptionSegment
+                        try
                         {
-                            Text = text,
-                            Timestamp = timestamp,
-                            Duration = TimeSpan.FromSeconds(2)
-                        });
+                            var timestamp = DateTime.ParseExact(line.Substring(1, 8), "HH:mm:ss", null);
+                            var text = line.Substring(11);
+
+                            translationDocument.Segments.Add(new TranscriptionSegment
+                            {
+                                Text = text,
+                                Timestamp = timestamp,
+                                Duration = TimeSpan.FromSeconds(2)
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Log($"Error parsing translation line: {line}, Error: {ex.Message}");
+                        }
                     }
                 }
 
@@ -277,8 +372,10 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
                     SelectedOutputFormat,
                     translatedLanguage: SelectedTargetLanguage);
 
-                Status += $" Translation saved to: {translationPath}";
+                Status = $"Files saved - Transcript: {filePath}, Translation: {translationPath}";
             }
+
+            _logger.Log("Save completed successfully");
         }
         catch (Exception ex)
         {
@@ -289,9 +386,18 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
 
     private void ClearTranscript()
     {
-        CurrentTranscript = string.Empty;
-        CurrentTranslation = string.Empty;
-        _document = new TranscriptionDocument();
-        Status = "Transcript cleared";
+        try
+        {
+            CurrentTranscript = string.Empty;
+            CurrentTranslation = string.Empty;
+            _document = new TranscriptionDocument();
+            Status = "Transcript cleared";
+
+            _logger.Log("Transcript cleared");
+        }
+        catch (Exception ex)
+        {
+            _logger.Log($"Error clearing transcript: {ex.Message}");
+        }
     }
 }

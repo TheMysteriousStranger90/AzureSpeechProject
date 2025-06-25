@@ -21,34 +21,18 @@ public class AudioCaptureService : IDisposable
         _logger.Log("AudioCaptureService initialized");
     }
     
-    public async Task StartCapturingAsync(int sampleRate = 16000, int bitsPerSample = 16, int channels = 1, CancellationToken cancellationToken = default)
+    public void StartCapturing(int sampleRate = 16000, int bitsPerSample = 16, int channels = 1)
     {
         ThrowIfDisposed();
         
-        await _captureLock.WaitAsync(cancellationToken);
+        if (_isCapturing)
+        {
+            _logger.Log("Audio capture is already in progress");
+            return;
+        }
+        
         try
         {
-            if (_isCapturing)
-            {
-                _logger.Log("Audio capture is already in progress");
-                return;
-            }
-            
-            if (sampleRate != 16000 && sampleRate != 8000)
-            {
-                _logger.Log($"Warning: Azure Speech Services recommends 16kHz or 8kHz. Current: {sampleRate}Hz");
-            }
-            
-            if (bitsPerSample != 16)
-            {
-                _logger.Log($"Warning: Azure Speech Services recommends 16-bit audio. Current: {bitsPerSample}-bit");
-            }
-            
-            if (channels != 1)
-            {
-                _logger.Log($"Warning: Azure Speech Services recommends mono audio. Current: {channels} channel(s)");
-            }
-            
             _waveIn = new WaveInEvent
             {
                 WaveFormat = new WaveFormat(sampleRate, bitsPerSample, channels),
@@ -68,20 +52,20 @@ public class AudioCaptureService : IDisposable
             _logger.Log($"Failed to start audio capture: {ex.Message}");
             throw new InvalidOperationException($"Audio capture initialization failed: {ex.Message}", ex);
         }
-        finally
-        {
-            _captureLock.Release();
-        }
     }
     
-    public async Task StopCapturingAsync()
+    public async Task StartCapturingAsync(int sampleRate = 16000, int bitsPerSample = 16, int channels = 1, CancellationToken cancellationToken = default)
+    {
+        await Task.Run(() => StartCapturing(sampleRate, bitsPerSample, channels), cancellationToken);
+    }
+    
+    public void StopCapturing()
     {
         if (_disposed || (!_isCapturing && _waveIn == null))
         {
             return;
         }
         
-        await _captureLock.WaitAsync();
         try
         {
             if (_waveIn != null)
@@ -94,13 +78,14 @@ public class AudioCaptureService : IDisposable
         {
             _logger.Log($"Error stopping audio capture: {ex.Message}");
         }
-        finally
-        {
-            _captureLock.Release();
-        }
     }
     
-    public event EventHandler<AudioDataEventArgs>? AudioCaptured;
+    public async Task StopCapturingAsync()
+    {
+        await Task.Run(() => StopCapturing());
+    }
+    
+    public event EventHandler<byte[]>? AudioCaptured;
     
     private void WaveIn_DataAvailable(object? sender, WaveInEventArgs e)
     {
@@ -112,7 +97,12 @@ public class AudioCaptureService : IDisposable
             var audioData = new byte[e.BytesRecorded];
             Array.Copy(e.Buffer, audioData, e.BytesRecorded);
 
-            AudioCaptured?.Invoke(this, new AudioDataEventArgs(audioData, e.BytesRecorded));
+            AudioCaptured?.Invoke(this, audioData);
+            
+            if (DateTime.Now.Millisecond % 1000 < 50)
+            {
+                _logger.Log($"Audio data captured: {e.BytesRecorded} bytes");
+            }
         }
         catch (Exception ex)
         {
@@ -149,7 +139,7 @@ public class AudioCaptureService : IDisposable
         {
             try
             {
-                StopCapturingAsync().Wait(TimeSpan.FromSeconds(5));
+                StopCapturing();
                 
                 if (_waveIn != null)
                 {

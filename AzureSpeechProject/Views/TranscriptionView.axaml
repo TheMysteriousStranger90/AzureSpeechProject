@@ -50,8 +50,7 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" 
                         VerticalAlignment="Center" Spacing="8">
                 <Border Background="{DynamicResource AzurePrimaryBlue}" CornerRadius="4" Padding="8,4">
-                    <CheckBox IsChecked="{Binding EnableTranslation}" Content="Enable Translation" 
-                              Foreground="White"/>
+                    <CheckBox IsChecked="{Binding EnableTranslation}" Content="Enable Translation" />
                 </Border>
                 
                 <ComboBox ItemsSource="{Binding AvailableLanguages}" 
