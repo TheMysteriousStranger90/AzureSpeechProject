@@ -1,9 +1,10 @@
-﻿using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
+﻿using Avalonia.Markup.Xaml;
+using Avalonia.ReactiveUI;
+using AzureSpeechProject.ViewModels;
 
 namespace AzureSpeechProject.Views;
 
-public partial class TranscriptionView : UserControl
+public partial class TranscriptionView : ReactiveUserControl<TranscriptionViewModel>
 {
     public TranscriptionView()
     {
