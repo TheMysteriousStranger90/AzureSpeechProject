@@ -78,7 +78,7 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
                     _ => _logger.Log("Settings loaded on activation"),
                     ex => _logger.Log($"Error loading settings on activation: {ex.Message}"))
                 .DisposeWith(disposables);
-        
+
             Disposable.Create(() => { }).DisposeWith(disposables);
         });
     }
@@ -89,9 +89,12 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
         {
             var settings = await _settingsService.LoadSettingsAsync();
 
-            Region = settings.Region;
-            Key = settings.Key;
-            SelectedSpeechLanguage = settings.SpeechLanguage;
+            _logger.Log($"Loaded from service - OutputDirectory: '{settings.OutputDirectory}'");
+            _logger.Log($"Current ViewModel OutputDirectory before update: '{OutputDirectory}'");
+
+            Region = settings.Region ?? string.Empty;
+            Key = settings.Key ?? string.Empty;
+            SelectedSpeechLanguage = settings.SpeechLanguage ?? "en-US";
             SelectedSampleRate = settings.SampleRate;
             SelectedBitsPerSample = settings.BitsPerSample;
             SelectedChannels = settings.Channels;
@@ -99,20 +102,25 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
             if (!string.IsNullOrWhiteSpace(settings.OutputDirectory))
             {
                 OutputDirectory = settings.OutputDirectory;
+                _logger.Log($"✅ Set OutputDirectory from settings: '{OutputDirectory}'");
             }
-            else if (string.IsNullOrWhiteSpace(OutputDirectory))
+            else
             {
-                OutputDirectory = Path.Combine(
+                var defaultPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                     "Azure Speech Services",
                     "Transcripts");
+
+                OutputDirectory = defaultPath;
+                _logger.Log($"📁 Set default OutputDirectory: '{OutputDirectory}'");
             }
 
-            _logger.Log("Settings loaded in ViewModel");
+            _logger.Log($"Final ViewModel OutputDirectory: '{OutputDirectory}'");
         }
         catch (Exception ex)
         {
-            _logger.Log($"Error loading settings in ViewModel: {ex.Message}");
+            _logger.Log($"❌ Error loading settings in ViewModel: {ex.Message}");
+            _logger.Log($"Stack trace: {ex.StackTrace}");
 
             if (string.IsNullOrWhiteSpace(OutputDirectory))
             {
@@ -120,6 +128,7 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
                     Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                     "Azure Speech Services",
                     "Transcripts");
+                _logger.Log($"📁 Set fallback OutputDirectory: '{OutputDirectory}'");
             }
         }
     }
