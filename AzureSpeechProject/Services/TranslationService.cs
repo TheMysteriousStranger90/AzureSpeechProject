@@ -11,7 +11,7 @@ namespace AzureSpeechProject.Services;
 public class TranslationService : IDisposable
 {
     private readonly ILogger _logger;
-    private readonly SecretsService _secretsService;
+    private readonly ISettingsService _settingsService;
     private readonly AudioCaptureService _audioCaptureService;
     private TranslationRecognizer? _recognizer;
     private PushAudioInputStream? _audioStream;
@@ -19,11 +19,11 @@ public class TranslationService : IDisposable
 
     public event EventHandler<TranslationResult>? OnTranslationUpdated;
 
-    public TranslationService(ILogger logger, SecretsService secretsService, AudioCaptureService audioCaptureService)
+    public TranslationService(ILogger logger, ISettingsService settingsService, AudioCaptureService audioCaptureService)
     {
-        _logger = logger;
-        _secretsService = secretsService;
-        _audioCaptureService = audioCaptureService;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _audioCaptureService = audioCaptureService ?? throw new ArgumentNullException(nameof(audioCaptureService));
         _logger.Log("TranslationService initialized");
     }
 
@@ -36,12 +36,24 @@ public class TranslationService : IDisposable
         }
         
         _logger.Log($"Starting translation from {sourceLanguage} to {targetLanguage}");
-        var (region, key) = _secretsService.GetAzureSpeechCredentials();
-        var config = SpeechTranslationConfig.FromSubscription(key, region);
+        
+        var settings = await _settingsService.LoadSettingsAsync();
+        
+        if (string.IsNullOrEmpty(settings.Region) || string.IsNullOrEmpty(settings.Key))
+        {
+            throw new InvalidOperationException("Azure Speech credentials are not configured in settings");
+        }
+
+        var config = SpeechTranslationConfig.FromSubscription(settings.Key, settings.Region);
         config.SpeechRecognitionLanguage = sourceLanguage;
         config.AddTargetLanguage(targetLanguage);
 
-        _audioStream = AudioInputStream.CreatePushStream(AudioStreamFormat.GetWaveFormatPCM(16000, 16, 1));
+        var audioFormat = AudioStreamFormat.GetWaveFormatPCM(
+            (uint)settings.SampleRate, 
+            (byte)settings.BitsPerSample, 
+            (byte)settings.Channels);
+            
+        _audioStream = AudioInputStream.CreatePushStream(audioFormat);
         var audioConfig = AudioConfig.FromStreamInput(_audioStream);
         _recognizer = new TranslationRecognizer(config, audioConfig);
 

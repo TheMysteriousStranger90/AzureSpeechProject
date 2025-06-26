@@ -43,7 +43,6 @@ class Program
         // Register core services
         services.AddSingleton<ILogger, FileLogger>();
         services.AddSingleton<ISettingsService, SettingsService>();
-        services.AddSingleton<SecretsService>();
         services.AddSingleton<ITranscriptFileService, TranscriptFileService>();
         services.AddSingleton<AudioCaptureService>();
         services.AddSingleton<TranscriptionService>();

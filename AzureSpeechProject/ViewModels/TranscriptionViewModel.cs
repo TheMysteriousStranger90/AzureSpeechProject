@@ -135,7 +135,7 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
                 await _translationService.StartTranslationAsync("en-US", SelectedTargetLanguage);
             }
 
-            _audioCaptureService.StartCapturing();
+            await _audioCaptureService.StartCapturingAsync();
 
             Status = "Recording in progress... Speak now!";
             _logger.Log("All services started successfully.");

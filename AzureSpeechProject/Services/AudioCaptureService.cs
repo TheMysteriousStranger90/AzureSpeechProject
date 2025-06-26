@@ -2,7 +2,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using AzureSpeechProject.Logger;
-using AzureSpeechProject.Models;
 using NAudio.Wave;
 
 namespace AzureSpeechProject.Services;
@@ -10,18 +9,20 @@ namespace AzureSpeechProject.Services;
 public class AudioCaptureService : IDisposable
 {
     private readonly ILogger _logger;
+    private readonly ISettingsService _settingsService;
     private WaveInEvent? _waveIn;
     private bool _isCapturing = false;
     private bool _disposed = false;
     private readonly SemaphoreSlim _captureLock = new(1, 1);
     
-    public AudioCaptureService(ILogger logger)
+    public AudioCaptureService(ILogger logger, ISettingsService settingsService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _logger.Log("AudioCaptureService initialized");
     }
     
-    public void StartCapturing(int sampleRate = 16000, int bitsPerSample = 16, int channels = 1)
+    public async Task StartCapturingAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         
@@ -33,9 +34,11 @@ public class AudioCaptureService : IDisposable
         
         try
         {
+            var settings = await _settingsService.LoadSettingsAsync();
+            
             _waveIn = new WaveInEvent
             {
-                WaveFormat = new WaveFormat(sampleRate, bitsPerSample, channels),
+                WaveFormat = new WaveFormat(settings.SampleRate, settings.BitsPerSample, settings.Channels),
                 BufferMilliseconds = 50
             };
             
@@ -45,18 +48,13 @@ public class AudioCaptureService : IDisposable
             _waveIn.StartRecording();
             _isCapturing = true;
             
-            _logger.Log($"Started audio capture: {sampleRate}Hz, {bitsPerSample}-bit, {channels} channel(s)");
+            _logger.Log($"Started audio capture: {settings.SampleRate}Hz, {settings.BitsPerSample}-bit, {settings.Channels} channel(s)");
         }
         catch (Exception ex)
         {
             _logger.Log($"Failed to start audio capture: {ex.Message}");
             throw new InvalidOperationException($"Audio capture initialization failed: {ex.Message}", ex);
         }
-    }
-    
-    public async Task StartCapturingAsync(int sampleRate = 16000, int bitsPerSample = 16, int channels = 1, CancellationToken cancellationToken = default)
-    {
-        await Task.Run(() => StartCapturing(sampleRate, bitsPerSample, channels), cancellationToken);
     }
     
     public void StopCapturing()

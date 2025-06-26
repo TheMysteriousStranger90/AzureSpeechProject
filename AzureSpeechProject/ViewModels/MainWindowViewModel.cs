@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reactive.Disposables;
+using System.Threading.Tasks;
 using AzureSpeechProject.Logger;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
@@ -33,6 +34,19 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
             {
                 try
                 {
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await SettingsViewModel.LoadSettingsAsync();
+                            _logger.Log("Settings preloaded in MainWindowViewModel");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Log($"Error preloading settings in MainWindowViewModel: {ex.Message}");
+                        }
+                    });
+
                     TranscriptionViewModel.WhenAnyValue(x => x.Status)
                         .Subscribe(status => 
                         {

@@ -9,7 +9,7 @@ namespace AzureSpeechProject.Services;
 
 public class TranscriptionService : IDisposable
 {
-    private readonly SecretsService _secretsService;
+    private readonly ISettingsService _settingsService;
     private readonly AudioCaptureService _audioCapture;
     private readonly ILogger _logger;
 
@@ -21,11 +21,11 @@ public class TranscriptionService : IDisposable
     public event EventHandler<TranscriptionSegment>? OnTranscriptionUpdated;
 
     public TranscriptionService(
-        SecretsService secretsService,
+        ISettingsService settingsService,
         AudioCaptureService audioCapture,
         ILogger logger)
     {
-        _secretsService = secretsService ?? throw new ArgumentNullException(nameof(secretsService));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _audioCapture = audioCapture ?? throw new ArgumentNullException(nameof(audioCapture));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _logger.Log("TranscriptionService initialized");
@@ -42,20 +42,38 @@ public class TranscriptionService : IDisposable
         _logger.Log("Starting Azure Speech transcription...");
         _transcriptionDocument = new TranscriptionDocument { StartTime = DateTime.Now, Language = options.Language };
 
-        var (region, key) = _secretsService.GetAzureSpeechCredentials();
-        var speechConfig = SpeechConfig.FromSubscription(key, region);
-        speechConfig.SpeechRecognitionLanguage = options.Language;
+        var settings = await _settingsService.LoadSettingsAsync();
+
+        if (string.IsNullOrEmpty(settings.Region) || string.IsNullOrEmpty(settings.Key))
+        {
+            throw new InvalidOperationException("Azure Speech credentials are not configured in settings");
+        }
+
+        var speechConfig = SpeechConfig.FromSubscription(settings.Key, settings.Region);
+        speechConfig.SpeechRecognitionLanguage = settings.SpeechLanguage;
         speechConfig.SetProperty(PropertyId.SpeechServiceResponse_PostProcessingOption, "TrueText");
         speechConfig.SetProfanity(options.EnableProfanityFilter ? ProfanityOption.Masked : ProfanityOption.Raw);
+
+        _logger.Log($"Speech config - Language: {speechConfig.SpeechRecognitionLanguage}, Region: {settings.Region}");
+
         if (options.EnableWordLevelTimestamps)
         {
             speechConfig.RequestWordLevelTimestamps();
         }
 
-        _audioInputStream = AudioInputStream.CreatePushStream(AudioStreamFormat.GetWaveFormatPCM(16000, 16, 1));
+        var audioFormat = AudioStreamFormat.GetWaveFormatPCM(
+            (uint)settings.SampleRate,
+            (byte)settings.BitsPerSample,
+            (byte)settings.Channels);
+
+        _logger.Log(
+            $"Audio format - SampleRate: {settings.SampleRate}, BitsPerSample: {settings.BitsPerSample}, Channels: {settings.Channels}");
+
+        _audioInputStream = AudioInputStream.CreatePushStream(audioFormat);
         var audioConfig = AudioConfig.FromStreamInput(_audioInputStream);
         _recognizer = new SpeechRecognizer(speechConfig, audioConfig);
 
+        _recognizer.Recognizing += OnRecognizing;
         _recognizer.Recognized += OnRecognized;
         _recognizer.Canceled += OnCanceled;
         _recognizer.SessionStarted += (s, e) => _logger.Log($"Transcription Session started: {e.SessionId}");
@@ -77,6 +95,9 @@ public class TranscriptionService : IDisposable
 
     private void OnRecognized(object? sender, SpeechRecognitionEventArgs e)
     {
+        _logger.Log(
+            $"Recognition result received - Reason: {e.Result.Reason}, Text: '{e.Result.Text}', Duration: {e.Result.Duration}");
+
         if (e.Result.Reason == ResultReason.RecognizedSpeech && !string.IsNullOrWhiteSpace(e.Result.Text))
         {
             var segment = new TranscriptionSegment
@@ -88,6 +109,22 @@ public class TranscriptionService : IDisposable
             _transcriptionDocument.Segments.Add(segment);
             OnTranscriptionUpdated?.Invoke(this, segment);
             _logger.Log($"Transcribed: {segment.Text}");
+        }
+        else if (e.Result.Reason == ResultReason.NoMatch)
+        {
+            _logger.Log("No speech was recognized in the audio segment");
+        }
+        else
+        {
+            _logger.Log($"Recognition failed with reason: {e.Result.Reason}");
+        }
+    }
+
+    private void OnRecognizing(object? sender, SpeechRecognitionEventArgs e)
+    {
+        if (!string.IsNullOrWhiteSpace(e.Result.Text))
+        {
+            _logger.Log($"Recognizing: {e.Result.Text}");
         }
     }
 
@@ -113,11 +150,13 @@ public class TranscriptionService : IDisposable
             _recognizer.Dispose();
             _recognizer = null;
         }
+
         if (_audioInputStream != null)
         {
             _audioInputStream.Close();
             _audioInputStream = null;
         }
+
         _isTranscribing = false;
         _transcriptionDocument.EndTime = DateTime.Now;
         _logger.Log("Transcription service stopped.");
@@ -133,6 +172,7 @@ public class TranscriptionService : IDisposable
             _recognizer.Canceled -= OnCanceled;
             _recognizer.Dispose();
         }
+
         _audioInputStream?.Dispose();
     }
 }

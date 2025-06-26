@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reactive;
 using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using AzureSpeechProject.Logger;
@@ -71,12 +72,18 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
 
         this.WhenActivated(disposables =>
         {
-            _ = LoadSettingsAsync();
+            Observable.FromAsync(LoadSettingsAsync)
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(
+                    _ => _logger.Log("Settings loaded on activation"),
+                    ex => _logger.Log($"Error loading settings on activation: {ex.Message}"))
+                .DisposeWith(disposables);
+        
             Disposable.Create(() => { }).DisposeWith(disposables);
         });
     }
 
-    private async Task LoadSettingsAsync()
+    public async Task LoadSettingsAsync()
     {
         try
         {
