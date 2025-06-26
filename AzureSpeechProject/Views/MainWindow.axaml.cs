@@ -1,7 +1,5 @@
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Markup.Xaml;
 
 namespace AzureSpeechProject.Views
 {
@@ -14,7 +12,6 @@ namespace AzureSpeechProject.Views
 
         public void TitleBar_PointerPressed(object? sender, PointerPressedEventArgs e)
         {
-            // Это позволяет перетаскивать окно при нажатии на заголовок
             if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             {
                 BeginMoveDrag(e);
@@ -30,7 +27,6 @@ namespace AzureSpeechProject.Views
         {
             WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
             
-            // Обновление значка кнопки в зависимости от состояния окна
             if (this.FindControl<Button>("MaximizeButton") is Button maxButton)
             {
                 maxButton.Content = WindowState == WindowState.Maximized ? "🗗" : "🗖";

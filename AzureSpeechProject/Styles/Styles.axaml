@@ -21,6 +21,11 @@
             <!-- Accent Colors -->
             <SolidColorBrush x:Key="InfoBackgroundBrush" Color="#EFF6FC" />
             <SolidColorBrush x:Key="RecordingOverlayBrush" Color="#80000000" />
+            
+            <!-- Recording State Colors -->
+            <SolidColorBrush x:Key="RecordingBackgroundBrush" Color="#FFF8F8" />
+            <SolidColorBrush x:Key="RecordingBorderBrush" Color="#FFE6E6" />
+            <SolidColorBrush x:Key="RecordingAccentBrush" Color="#FF4757" />
         </Style.Resources>
     </Style>
 
@@ -55,35 +60,61 @@
         <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="4" />
-        <Setter Property="BoxShadow" Value="0 2 6 0 #20000000" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="BoxShadow" Value="0 4 12 0 #15000000" />
     </Style>
 
-    <!-- Settings section border style (moved from SettingsView) -->
+    <!-- Recording state card -->
+    <Style Selector="Border.card.recording">
+        <Setter Property="Background" Value="{DynamicResource RecordingBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RecordingBorderBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="BoxShadow" Value="0 6 20 0 #25FF4757" />
+    </Style>
+
+    <!-- Settings section border style -->
     <Style Selector="Border.section">
         <Setter Property="Padding" Value="20" />
         <Setter Property="Margin" Value="0,0,0,16" />
         <Setter Property="Background" Value="White" />
         <Setter Property="BorderBrush" Value="#CCCCCC" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="4" />
-        <Setter Property="BoxShadow" Value="0 2 6 0 #20000000" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="BoxShadow" Value="0 4 12 0 #15000000" />
     </Style>
 
     <Style Selector="Border.transcript-container">
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="CornerRadius" Value="12" />
         <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="BoxShadow" Value="0 2 6 0 #20000000" />
+        <Setter Property="BoxShadow" Value="0 4 12 0 #15000000" />
+    </Style>
+
+    <!-- Recording state transcript container -->
+    <Style Selector="Border.transcript-container.recording">
+        <Setter Property="BorderBrush" Value="{DynamicResource RecordingBorderBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Background" Value="{DynamicResource RecordingBackgroundBrush}" />
+        <Setter Property="BoxShadow" Value="0 6 20 0 #25FF4757" />
     </Style>
 
     <Style Selector="Border.transcript-header">
-        <Setter Property="Background" Value="#F0F0F0" />
+        <Setter Property="Background" Value="#F8F9FA" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
         <Setter Property="Padding" Value="16,12" />
+        <Setter Property="CornerRadius" Value="12,12,0,0" />
+    </Style>
+
+    <!-- Recording state transcript header -->
+    <Style Selector="Border.transcript-header.recording">
+        <Setter Property="Background" Value="{DynamicResource RecordingBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RecordingBorderBrush}" />
+        <Setter Property="CornerRadius" Value="16,16,0,0" />
     </Style>
 
     <Style Selector="Border.transcript-header > TextBlock">
@@ -101,7 +132,7 @@
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="CornerRadius" Value="8" />
     </Style>
 
     <Style Selector="TextBox.transcript">
@@ -111,26 +142,31 @@
         <Setter Property="TextWrapping" Value="Wrap" />
         <Setter Property="AcceptsReturn" Value="True" />
         <Setter Property="IsReadOnly" Value="True" />
-        <Setter Property="CornerRadius" Value="0" />
-        <Setter Property="FontFamily" Value="Consolas, Menlo, Monaco, 'Courier New', monospace" />
+        <Setter Property="CornerRadius" Value="0,0,12,12" />
+        <Setter Property="FontFamily" Value="Segoe UI, Arial, sans-serif" />
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
         <Setter Property="Margin" Value="0" />
+        <Setter Property="LineHeight" Value="1.4" />
+    </Style>
+
+    <!-- Recording state transcript -->
+    <Style Selector="TextBox.transcript.recording">
+        <Setter Property="CornerRadius" Value="0,0,16,16" />
+        <Setter Property="Background" Value="{DynamicResource RecordingBackgroundBrush}" />
     </Style>
 
     <!-- Buttons -->
-    <!-- Button Styles with Fixed Hover Issues -->
     <Style Selector="Button.primary">
         <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
         <Setter Property="Foreground" Value="White" />
-        <Setter Property="Padding" Value="16,8" />
-        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="20,10" />
+        <Setter Property="CornerRadius" Value="25" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="MinWidth" Value="120" />
+        <Setter Property="MinWidth" Value="140" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <!-- Override default template behaviors -->
         <Setter Property="Template">
             <ControlTemplate>
                 <ContentPresenter x:Name="PART_ContentPresenter"
@@ -157,17 +193,16 @@
     </Style>
 
     <Style Selector="Button.secondary">
-        <Setter Property="Background" Value="#F0F0F0" />
+        <Setter Property="Background" Value="#F8F9FA" />
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
-        <Setter Property="Padding" Value="16,8" />
-        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="20,10" />
+        <Setter Property="CornerRadius" Value="25" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="MinWidth" Value="120" />
+        <Setter Property="MinWidth" Value="140" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Cursor" Value="Hand" />
-        <!-- Override default template behaviors -->
         <Setter Property="Template">
             <ControlTemplate>
                 <ContentPresenter x:Name="PART_ContentPresenter"
@@ -185,21 +220,22 @@
     </Style>
 
     <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="#F0F0F0" />
+        <Setter Property="Background" Value="#F8F9FA" />
     </Style>
 
     <Style Selector="Button.action">
-        <Setter Property="Padding" Value="16,8" />
-        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="24,12" />
+        <Setter Property="CornerRadius" Value="30" />
         <Setter Property="Foreground" Value="White" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="HorizontalAlignment" Value="Center" />
-        <Setter Property="MinWidth" Value="120" />
+        <Setter Property="MinWidth" Value="160" />
+        <Setter Property="MinHeight" Value="48" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="14" />
         <Setter Property="BorderThickness" Value="0" />
-        <!-- Override default template behaviors -->
         <Setter Property="Template">
             <ControlTemplate>
                 <ContentPresenter x:Name="PART_ContentPresenter"
@@ -220,7 +256,7 @@
         <Setter Property="Opacity" Value="0.9" />
     </Style>
 
-    <!-- Azure themed action buttons with fixed hover -->
+    <!-- Azure themed action buttons -->
     <Style Selector="Button.azure-start">
         <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
     </Style>
@@ -237,43 +273,92 @@
         <Setter Property="Background" Value="{DynamicResource AzureRed}" />
     </Style>
 
-    <!-- ComboBox Azure theme -->
+    <!-- Recording state buttons -->
+    <Style Selector="Button.action.recording">
+        <Setter Property="CornerRadius" Value="50" />
+        <Setter Property="MinWidth" Value="180" />
+        <Setter Property="MinHeight" Value="56" />
+        <Setter Property="FontSize" Value="15" />
+    </Style>
+
+    <!-- ComboBox Azure theme with explicit white text -->
     <Style Selector="ComboBox">
         <Setter Property="Margin" Value="0,4,0,8" />
-        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Padding" Value="16,10" />
         <Setter Property="MinWidth" Value="200" />
         <Setter Property="HorizontalAlignment" Value="Left" />
         <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
         <Setter Property="Foreground" Value="White" />
-        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="CornerRadius" Value="20" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Cursor" Value="Hand" />
     </Style>
 
-    <!-- Removed hover effect -->
+    <!-- ComboBox text styling -->
+    <Style Selector="ComboBox /template/ ContentPresenter#ContentPresenter">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ComboBox /template/ TextBlock">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
     <Style Selector="ComboBox:pointerover /template/ Border#Background">
         <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+    </Style>
+
+    <Style Selector="ComboBox:pointerover /template/ ContentPresenter#ContentPresenter">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ComboBox:pointerover /template/ TextBlock">
+        <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="ComboBox:pressed /template/ Border#Background">
         <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
     </Style>
 
-    <Style Selector="ComboBoxItem">
-        <Setter Property="Padding" Value="12,8" />
-        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+    <Style Selector="ComboBox:pressed /template/ ContentPresenter#ContentPresenter">
         <Setter Property="Foreground" Value="White" />
     </Style>
 
-    <!-- Removed hover effect -->
-    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+    <Style Selector="ComboBox:pressed /template/ TextBlock">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ComboBoxItem">
+        <Setter Property="Padding" Value="16,10" />
         <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
-        <Setter Property="TextBlock.Foreground" Value="White" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Margin" Value="2" />
+    </Style>
+
+    <Style Selector="ComboBoxItem /template/ ContentPresenter">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ComboBoxItem /template/ TextBlock">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ComboBoxItem:pointerover /template/ TextBlock">
+        <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}" />
-        <Setter Property="TextBlock.Foreground" Value="White" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ComboBoxItem:selected /template/ TextBlock">
+        <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="ComboBox /template/ PathIcon">
@@ -282,7 +367,15 @@
 
     <Style Selector="ComboBox:focus-within /template/ Border#Background">
         <Setter Property="BorderBrush" Value="White" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
+    <Style Selector="ComboBox:focus-within /template/ ContentPresenter#ContentPresenter">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="ComboBox:focus-within /template/ TextBlock">
+        <Setter Property="Foreground" Value="White" />
     </Style>
 
     <!-- CheckBox Azure theme -->
@@ -293,49 +386,41 @@
         <Setter Property="Cursor" Value="Hand" />
     </Style>
 
-    <Style Selector="CheckBox /template/ Border#NormalRectangle">
+    <!-- Recording indicator styles -->
+    <Style Selector="Ellipse.recording-indicator">
+        <Setter Property="Fill" Value="{DynamicResource RecordingAccentBrush}" />
+        <Setter Property="Width" Value="12" />
+        <Setter Property="Height" Value="12" />
+        <Setter Property="Margin" Value="8,0,0,0" />
+    </Style>
+
+    <!-- Microphone icon during recording -->
+    <Style Selector="Path.microphone-icon">
+        <Setter Property="Fill" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Width" Value="24" />
+        <Setter Property="Height" Value="24" />
+    </Style>
+
+    <Style Selector="Path.microphone-icon.recording">
+        <Setter Property="Fill" Value="{DynamicResource RecordingAccentBrush}" />
+    </Style>
+
+    <!-- Status indicators -->
+    <Style Selector="Border.status-indicator">
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Margin" Value="8,0,0,0" />
+    </Style>
+
+    <Style Selector="Border.status-indicator.recording">
+        <Setter Property="Background" Value="{DynamicResource RecordingBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RecordingBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Border.status-indicator.idle">
+        <Setter Property="Background" Value="{DynamicResource InfoBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AzurePrimaryBlue}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="2" />
-        <Setter Property="Width" Value="18" />
-        <Setter Property="Height" Value="18" />
-    </Style>
-
-    <!-- Removed hover effect -->
-    <Style Selector="CheckBox:pointerover /template/ Border#NormalRectangle">
-        <Setter Property="BorderBrush" Value="{DynamicResource AzurePrimaryBlue}" />
-        <Setter Property="Background" Value="Transparent" />
-    </Style>
-
-    <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
-        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AzurePrimaryBlue}" />
-    </Style>
-
-    <!-- Removed hover effect -->
-    <Style Selector="CheckBox:checked:pointerover /template/ Border#NormalRectangle">
-        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AzurePrimaryBlue}" />
-    </Style>
-
-    <Style Selector="CheckBox:checked /template/ Path#CheckGlyph">
-        <Setter Property="Fill" Value="White" />
-    </Style>
-
-    <!-- Recording Animation -->
-    <Style Selector="Ellipse.recording-pulse">
-        <Style.Animations>
-            <Animation Duration="0:0:1" IterationCount="INFINITE">
-                <KeyFrame Cue="0%">
-                    <Setter Property="Opacity" Value="1.0" />
-                </KeyFrame>
-                <KeyFrame Cue="50%">
-                    <Setter Property="Opacity" Value="0.3" />
-                </KeyFrame>
-                <KeyFrame Cue="100%">
-                    <Setter Property="Opacity" Value="1.0" />
-                </KeyFrame>
-            </Animation>
-        </Style.Animations>
     </Style>
 </Styles>
