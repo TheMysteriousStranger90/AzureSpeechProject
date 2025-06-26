@@ -12,21 +12,23 @@ namespace AzureSpeechProject;
 
 class Program
 {
+    private static ServiceProvider? _serviceProvider;
+    
     [STAThread]
     public static void Main(string[] args)
     {
         var services = new ServiceCollection();
         ConfigureServices(services);
         
-        var serviceProvider = services.BuildServiceProvider();
+        _serviceProvider = services.BuildServiceProvider();
 
-        BuildAvaloniaApp(serviceProvider)
+        BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
     }
 
-    public static AppBuilder BuildAvaloniaApp(ServiceProvider serviceProvider)
+    public static AppBuilder BuildAvaloniaApp()
     {
-        return AppBuilder.Configure<App>(() => new App(serviceProvider))
+        return AppBuilder.Configure<App>(() => new App(_serviceProvider!))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()
@@ -38,7 +40,7 @@ class Program
         // Register configurations
         services.AddSingleton<IEnvironmentConfiguration, EnvironmentConfiguration>();
         
-        // Register services
+        // Register core services
         services.AddSingleton<ILogger, FileLogger>();
         services.AddSingleton<SecretsService>();
         services.AddSingleton<ITranscriptFileService, TranscriptFileService>();
@@ -47,10 +49,9 @@ class Program
         services.AddSingleton<TranslationService>();
         
         // Register ViewModels
-        services.AddSingleton<ViewModelBase>();
-        services.AddSingleton<MainWindowViewModel>();
         services.AddTransient<TranscriptionViewModel>();
         services.AddTransient<SettingsViewModel>();
+        services.AddSingleton<MainWindowViewModel>();
         
         // Register Views
         services.AddTransient<Views.MainWindow>();

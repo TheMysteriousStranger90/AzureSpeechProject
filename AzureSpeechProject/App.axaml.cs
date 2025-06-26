@@ -16,10 +16,9 @@ public partial class App : Application
 
     public App(ServiceProvider serviceProvider)
     {
-        _serviceProvider = serviceProvider;
-        
         try
         {
+            _serviceProvider = serviceProvider;
             _logger = _serviceProvider?.GetService<ILogger>();
             _logger?.Log("App constructor called with ServiceProvider");
         }
