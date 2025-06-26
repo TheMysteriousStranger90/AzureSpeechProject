@@ -7,71 +7,6 @@
              x:Class="AzureSpeechProject.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
 
-    <UserControl.Styles>
-        <Style Selector="TextBlock.header">
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="FontSize" Value="16" />
-            <Setter Property="Margin" Value="0,0,0,8" />
-        </Style>
-
-        <Style Selector="TextBlock.label">
-            <Setter Property="Margin" Value="0,8,0,4" />
-            <Setter Property="FontWeight" Value="Medium" />
-        </Style>
-
-        <Style Selector="TextBlock.description">
-            <Setter Property="Opacity" Value="0.7" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Margin" Value="0,2,0,8" />
-        </Style>
-
-        <Style Selector="Border.section">
-            <Setter Property="Padding" Value="20" />
-            <Setter Property="Margin" Value="0,0,0,16" />
-            <Setter Property="Background" Value="White" />
-            <Setter Property="BorderBrush" Value="#CCCCCC" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="BoxShadow" Value="0 2 6 0 #20000000" />
-        </Style>
-
-        <Style Selector="ComboBox">
-            <Setter Property="Margin" Value="0,4,0,8" />
-            <Setter Property="Padding" Value="12,6" />
-            <Setter Property="MinWidth" Value="200" />
-            <Setter Property="HorizontalAlignment" Value="Left" />
-        </Style>
-
-        <Style Selector="TextBox">
-            <Setter Property="Padding" Value="12,8" />
-            <Setter Property="Margin" Value="0,4,0,8" />
-            <Setter Property="MinWidth" Value="300" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-        </Style>
-
-        <Style Selector="Button.primary">
-            <Setter Property="Background" Value="#0078D4" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="Padding" Value="16,8" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="MinWidth" Value="120" />
-        </Style>
-
-        <Style Selector="Button.secondary">
-            <Setter Property="Background" Value="#F0F0F0" />
-            <Setter Property="Foreground" Value="#333333" />
-            <Setter Property="Padding" Value="16,8" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="MinWidth" Value="120" />
-            <Setter Property="BorderBrush" Value="#CCCCCC" />
-            <Setter Property="BorderThickness" Value="1" />
-        </Style>
-    </UserControl.Styles>
-
     <ScrollViewer>
         <Grid Margin="20" MaxWidth="900">
             <StackPanel>
@@ -178,7 +113,24 @@
                             <TextBox Grid.Column="0" Text="{Binding OutputDirectory}" />
                             <Button Grid.Column="1" Content="Browse..."
                                     Command="{Binding BrowseCommand}"
-                                    Margin="8,4,0,8" Padding="12,8" VerticalAlignment="Top" />
+                                    Background="#0078D4" Foreground="White"
+                                    BorderThickness="0" CornerRadius="4"
+                                    Margin="8,4,0,8" Padding="12,8" VerticalAlignment="Top">
+                                <Button.Template>
+                                    <ControlTemplate>
+                                        <ContentPresenter x:Name="PART_ContentPresenter"
+                                                          Background="{TemplateBinding Background}"
+                                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                                          CornerRadius="{TemplateBinding CornerRadius}"
+                                                          Content="{TemplateBinding Content}"
+                                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                          Padding="{TemplateBinding Padding}"
+                                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
                         </Grid>
                         <TextBlock Classes="description"
                                    Text="The directory where transcripts and translations will be saved." />
@@ -229,17 +181,7 @@
                 <!-- Action Buttons -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
                     <Button Classes="secondary" Content="Reset to Defaults" Command="{Binding ResetCommand}" />
-                    <Button Classes="primary" Content="Save Settings" Command="{Binding SaveCommand}">
-                        <Button.Styles>
-                            <Style Selector="Button.primary">
-                                <Setter Property="Content" Value="Save Settings" />
-                            </Style>
-                            <Style Selector="Button.primary:pointerover">
-                                <Setter Property="Content" Value="Save Settings" />
-                                <Setter Property="Background" Value="#106EBE" />
-                            </Style>
-                        </Button.Styles>
-                    </Button>
+                    <Button Classes="primary" Content="Save Settings" Command="{Binding SaveCommand}" />
                 </StackPanel>
             </StackPanel>
         </Grid>
