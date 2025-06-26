@@ -207,7 +207,7 @@ public class SettingsService : ISettingsService
     {
         return new AppSettings
         {
-            Region = "westeurope",
+            Region = string.Empty,
             Key = string.Empty,
             SpeechLanguage = "en-US",
             SampleRate = 16000,
