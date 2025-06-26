@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
@@ -153,7 +154,7 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
 
         _logger.Log("Stopping recording process...");
         Status = "Stopping...";
-        
+
         await _audioCaptureService.StopCapturingAsync();
 
         await _transcriptionService.StopTranscriptionAsync();
@@ -175,10 +176,73 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
         {
             var filePath = await _fileService.SaveTranscriptAsync(_document, SelectedOutputFormat);
             Status = $"Transcript saved to: {filePath}";
+
+            if (EnableTranslation && !string.IsNullOrWhiteSpace(CurrentTranslation))
+            {
+                var translationDocument = new TranscriptionDocument
+                {
+                    Language = SelectedTargetLanguage,
+                    StartTime = _document.StartTime,
+                    EndTime = _document.EndTime
+                };
+                
+                var lines = CurrentTranslation.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
+                {
+                    if (TryParseTranslationLine(line, out var timestamp, out var text))
+                    {
+                        translationDocument.Segments.Add(new TranscriptionSegment
+                        {
+                            Text = text,
+                            Timestamp = timestamp,
+                            Duration = TimeSpan.FromSeconds(2)
+                        });
+                    }
+                }
+
+                var translationFilePath = await _fileService.SaveTranscriptAsync(
+                    translationDocument,
+                    SelectedOutputFormat,
+                    default,
+                    SelectedTargetLanguage);
+
+                Status = $"Transcript and translation saved to: {Path.GetDirectoryName(filePath)}";
+            }
         }
         catch (Exception ex)
         {
             Status = $"Error saving transcript: {ex.Message}";
+            _logger.Log($"Error saving transcript: {ex.Message}");
+        }
+    }
+
+    private bool TryParseTranslationLine(string line, out DateTime timestamp, out string text)
+    {
+        timestamp = DateTime.Now;
+        text = line;
+
+        try
+        {
+            if (line.StartsWith("[") && line.Contains("]"))
+            {
+                var parts = line.Split(']', 2);
+                if (parts.Length == 2)
+                {
+                    var timeString = parts[0].Trim('[', ']');
+                    if (TimeSpan.TryParse(timeString, out var timeSpan))
+                    {
+                        timestamp = DateTime.Today.Add(timeSpan);
+                        text = parts[1].Trim();
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
         }
     }
 
