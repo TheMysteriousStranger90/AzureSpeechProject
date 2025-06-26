@@ -1,56 +1,45 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 
-namespace AzureSpeechProject.Views;
-
-public partial class MainWindow : Window
+namespace AzureSpeechProject.Views
 {
-    public MainWindow()
+    public partial class MainWindow : Window
     {
-        InitializeComponent();
-    }
-
-    private void InitializeComponent()
-    {
-        AvaloniaXamlLoader.Load(this);
-    }
-
-    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
-    {
-        this.WindowState = WindowState.Minimized;
-    }
-
-    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
-    {
-        this.WindowState = this.WindowState == WindowState.Maximized 
-            ? WindowState.Normal 
-            : WindowState.Maximized;
-        
-        var button = this.FindControl<Button>("MaximizeButton");
-        if (button != null)
+        public MainWindow()
         {
-            button.Content = this.WindowState == WindowState.Maximized ? "🗗" : "🗖";
+            InitializeComponent();
         }
-    }
 
-    private void CloseButton_Click(object sender, RoutedEventArgs e)
-    {
-        this.Close();
-    }
-
-    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
-    {
-        base.OnPropertyChanged(change);
-        
-        if (change.Property == WindowStateProperty)
+        public void TitleBar_PointerPressed(object? sender, PointerPressedEventArgs e)
         {
-            var button = this.FindControl<Button>("MaximizeButton");
-            if (button != null)
+            // Это позволяет перетаскивать окно при нажатии на заголовок
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             {
-                button.Content = this.WindowState == WindowState.Maximized ? "🗗" : "🗖";
+                BeginMoveDrag(e);
             }
+        }
+
+        public void MinimizeButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        public void MaximizeButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            
+            // Обновление значка кнопки в зависимости от состояния окна
+            if (this.FindControl<Button>("MaximizeButton") is Button maxButton)
+            {
+                maxButton.Content = WindowState == WindowState.Maximized ? "🗗" : "🗖";
+            }
+        }
+
+        public void CloseButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            Close();
         }
     }
 }
