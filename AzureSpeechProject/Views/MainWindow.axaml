@@ -4,6 +4,7 @@
         xmlns:views="using:AzureSpeechProject.Views"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:converters="using:AzureSpeechProject.Converters"
         mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
         x:Class="AzureSpeechProject.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -19,6 +20,11 @@
     <Design.DataContext>
         <vm:MainWindowViewModel/>
     </Design.DataContext>
+    
+    <Window.Resources>
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter" TrueColor="#E32036" FalseColor="#0078D4" />
+        <converters:BoolToIconConverter x:Key="BoolToIconConverter" />
+    </Window.Resources>
 
     <Window.Styles>
         <Style Selector="Window">
@@ -86,7 +92,7 @@
             <Grid ColumnDefinitions="*,Auto" Margin="16,10">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <Ellipse x:Name="StatusIndicator" Width="8" Height="8" 
-                             Fill="{DynamicResource AzurePrimaryBlue}" 
+                             Fill="{Binding TranscriptionViewModel.IsRecording, Converter={StaticResource BoolToColorConverter}}" 
                              Margin="0,0,8,0" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding StatusMessage}" Classes="StatusBar"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>

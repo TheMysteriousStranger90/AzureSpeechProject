@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Reactive.Disposables;
-using System.Threading.Tasks;
+using System.Reactive.Linq;
 using AzureSpeechProject.Logger;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
@@ -34,28 +34,78 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
             {
                 try
                 {
-                    Task.Run(async () =>
+                    // Загружаем настройки при активации
+                    Observable.FromAsync(async () =>
                     {
-                        try
-                        {
-                            await SettingsViewModel.LoadSettingsAsync();
-                            _logger.Log("Settings preloaded in MainWindowViewModel");
-                        }
-                        catch (Exception ex)
+                        StatusMessage = "Loading settings...";
+                        await SettingsViewModel.LoadSettingsAsync();
+                        _logger.Log("Settings preloaded in MainWindowViewModel");
+                        StatusMessage = "Settings loaded successfully";
+                        
+                        // Небольшая задержка, чтобы пользователь увидел сообщение
+                        await System.Threading.Tasks.Task.Delay(1000);
+                        StatusMessage = "Ready";
+                    })
+                    .ObserveOn(RxApp.MainThreadScheduler)
+                    .Subscribe(
+                        _ => { },
+                        ex =>
                         {
                             _logger.Log($"Error preloading settings in MainWindowViewModel: {ex.Message}");
-                        }
-                    });
+                            StatusMessage = "Error loading settings";
+                        })
+                    .DisposeWith(disposables);
 
+                    // Реактивно отслеживаем изменения статуса транскрипции
                     TranscriptionViewModel.WhenAnyValue(x => x.Status)
+                        .Where(status => !string.IsNullOrWhiteSpace(status))
+                        .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(status => 
                         {
-                            StatusMessage = status ?? "Ready";
-                            _logger.Log($"Status updated: {StatusMessage}");
+                            StatusMessage = status;
+                            _logger.Log($"Status updated from TranscriptionViewModel: {StatusMessage}");
                         })
                         .DisposeWith(disposables);
 
-                    StatusMessage = "Ready";
+                    // Отслеживаем состояние записи для обновления статуса
+                    TranscriptionViewModel.WhenAnyValue(x => x.IsRecording)
+                        .ObserveOn(RxApp.MainThreadScheduler)
+                        .Subscribe(isRecording =>
+                        {
+                            if (isRecording)
+                            {
+                                _logger.Log("Recording state changed to: Recording");
+                            }
+                            else
+                            {
+                                _logger.Log("Recording state changed to: Stopped");
+                            }
+                        })
+                        .DisposeWith(disposables);
+
+                    // Отслеживаем ошибки в настройках
+                    Observable.CombineLatest(
+                        SettingsViewModel.WhenAnyValue(x => x.Region),
+                        SettingsViewModel.WhenAnyValue(x => x.Key),
+                        (region, key) => new { Region = region, Key = key })
+                        .Skip(1) // Пропускаем первоначальные значения
+                        .ObserveOn(RxApp.MainThreadScheduler)
+                        .Subscribe(settings =>
+                        {
+                            if (string.IsNullOrWhiteSpace(settings.Region) || string.IsNullOrWhiteSpace(settings.Key))
+                            {
+                                if (!TranscriptionViewModel.IsRecording)
+                                {
+                                    StatusMessage = "Azure credentials not configured - Check Settings tab";
+                                }
+                            }
+                            else if (!TranscriptionViewModel.IsRecording)
+                            {
+                                StatusMessage = "Ready to record";
+                            }
+                        })
+                        .DisposeWith(disposables);
+
                     _logger.Log("MainWindowViewModel activated successfully");
                 }
                 catch (Exception ex)
