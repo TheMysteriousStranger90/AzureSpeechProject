@@ -3,9 +3,15 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:AzureSpeechProject.ViewModels"
+             xmlns:converters="using:AzureSpeechProject.Converters"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="AzureSpeechProject.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
+    
+    <UserControl.Resources>
+        <converters:BoolToPasswordCharMultiConverter x:Key="BoolToPasswordCharMultiConverter" />
+        <converters:BoolToShowHideTextMultiConverter x:Key="BoolToShowHideTextMultiConverter" />
+    </UserControl.Resources>
 
     <ScrollViewer>
         <Grid Margin="20" MaxWidth="900">
@@ -31,12 +37,55 @@
 
                         <TextBlock Classes="label" Text="Azure Speech Key" />
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBox Grid.Column="0" Text="{Binding Key}"
-                                     PasswordChar="{Binding ShowKey, Converter={x:Static BoolConverters.Not}, ConverterParameter='*'}"
-                                     Watermark="Enter your Azure Speech Service key" />
+                            <TextBox Grid.Column="0" 
+                                     Text="{Binding Key}"
+                                     Watermark="Enter your Azure Speech Service key">
+                                <TextBox.PasswordChar>
+                                    <MultiBinding Converter="{StaticResource BoolToPasswordCharMultiConverter}">
+                                        <Binding Path="ShowKey"/>
+                                    </MultiBinding>
+                                </TextBox.PasswordChar>
+                            </TextBox>
                             <Button Grid.Column="1"
                                     Command="{Binding ToggleShowKeyCommand}"
-                                    Margin="8,4,0,8" Padding="8,8" VerticalAlignment="Top" />
+                                    Margin="8,4,0,8" Padding="12,8" VerticalAlignment="Top"
+                                    Background="{DynamicResource AzurePrimaryBlue}"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    CornerRadius="6"
+                                    FontSize="12"
+                                    FontWeight="Medium"
+                                    MinWidth="80"
+                                    Cursor="Hand">
+                                <Button.Content>
+                                    <MultiBinding Converter="{StaticResource BoolToShowHideTextMultiConverter}">
+                                        <Binding Path="ShowKey"/>
+                                    </MultiBinding>
+                                </Button.Content>
+                                <Button.Template>
+                                    <ControlTemplate>
+                                        <ContentPresenter x:Name="PART_ContentPresenter"
+                                                          Background="{TemplateBinding Background}"
+                                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                                          CornerRadius="{TemplateBinding CornerRadius}"
+                                                          Content="{TemplateBinding Content}"
+                                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                          Padding="{TemplateBinding Padding}"
+                                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                                        <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}" />
+                                    </Style>
+                                    <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+                                        <Setter Property="Background" Value="{DynamicResource AzureDarkBlue}" />
+                                        <Setter Property="Opacity" Value="0.9" />
+                                    </Style>
+                                </Button.Styles>
+                            </Button>
                         </Grid>
                         <TextBlock Classes="description"
                                    Text="The access key for your Azure Speech Service. Keep this secure and never share it." />
@@ -173,6 +222,11 @@
                             <TextBlock TextWrapping="Wrap">
                                 <Run>• </Run><Run FontWeight="SemiBold">Network considerations: </Run>
                                 <Run>Ensure stable internet connection for reliable speech recognition and translation.</Run>
+                            </TextBlock>
+
+                            <TextBlock TextWrapping="Wrap">
+                                <Run>• </Run><Run FontWeight="SemiBold">Credential security: </Run>
+                                <Run>Use the Show/Hide button to safely verify your Azure credentials without exposing them permanently.</Run>
                             </TextBlock>
                         </StackPanel>
                     </StackPanel>
