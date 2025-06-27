@@ -3,7 +3,6 @@ using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using AzureSpeechProject.Constants;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
 
@@ -12,10 +11,12 @@ namespace AzureSpeechProject.Services;
 public class TranscriptFileService : ITranscriptFileService
 {
     private readonly ILogger _logger;
+    private readonly ISettingsService _settingsService;
     
-    public TranscriptFileService(ILogger logger)
+    public TranscriptFileService(ILogger logger, ISettingsService settingsService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
     }
     
     public async Task<string> SaveTranscriptAsync(
@@ -31,7 +32,7 @@ public class TranscriptFileService : ITranscriptFileService
             _ => FileConstants.TextExtension
         };
         
-        string filePath = GenerateTranscriptFilePath(extension, translatedLanguage);
+        string filePath = await GenerateTranscriptFilePathAsync(extension, translatedLanguage);
         
         try
         {
@@ -39,6 +40,7 @@ public class TranscriptFileService : ITranscriptFileService
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
+                _logger.Log($"Created directory: {directory}");
             }
             
             string content = format switch
@@ -67,11 +69,28 @@ public class TranscriptFileService : ITranscriptFileService
     
     public string GenerateTranscriptFilePath(string extension, string? languageCode = null)
     {
+        return GenerateTranscriptFilePathAsync(extension, languageCode).GetAwaiter().GetResult();
+    }
+
+    private async Task<string> GenerateTranscriptFilePathAsync(string extension, string? languageCode = null)
+    {
         try
         {
-            if (!Directory.Exists(FileConstants.TranscriptsDirectory))
+            var settings = await _settingsService.LoadSettingsAsync();
+            var outputDirectory = settings.OutputDirectory;
+
+            if (string.IsNullOrWhiteSpace(outputDirectory))
             {
-                Directory.CreateDirectory(FileConstants.TranscriptsDirectory);
+                outputDirectory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "Azure Speech Services",
+                    "Transcripts");
+            }
+
+            if (!Directory.Exists(outputDirectory))
+            {
+                Directory.CreateDirectory(outputDirectory);
+                _logger.Log($"Created output directory: {outputDirectory}");
             }
 
             var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -80,7 +99,10 @@ public class TranscriptFileService : ITranscriptFileService
                 ? $"{FileConstants.DefaultTranscriptPrefix}_{timestamp}{extension}"
                 : $"{FileConstants.DefaultTranscriptPrefix}_{languageCode}_{timestamp}{extension}";
             
-            return Path.Combine(FileConstants.TranscriptsDirectory, filename);
+            var filePath = Path.Combine(outputDirectory, filename);
+            _logger.Log($"Generated transcript path: {filePath}");
+            
+            return filePath;
         }
         catch (Exception ex)
         {

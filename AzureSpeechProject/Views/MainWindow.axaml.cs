@@ -1,56 +1,56 @@
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml;
+using Avalonia.Input;
+using Avalonia.ReactiveUI;
+using AzureSpeechProject.ViewModels;
+using ReactiveUI;
+using System.Reactive.Disposables;
 
-namespace AzureSpeechProject.Views;
-
-public partial class MainWindow : Window
+namespace AzureSpeechProject.Views
 {
-    public MainWindow()
+    public partial class MainWindow : ReactiveWindow<MainWindowViewModel>
     {
-        InitializeComponent();
-    }
-
-    private void InitializeComponent()
-    {
-        AvaloniaXamlLoader.Load(this);
-    }
-
-    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
-    {
-        this.WindowState = WindowState.Minimized;
-    }
-
-    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
-    {
-        this.WindowState = this.WindowState == WindowState.Maximized 
-            ? WindowState.Normal 
-            : WindowState.Maximized;
-        
-        var button = this.FindControl<Button>("MaximizeButton");
-        if (button != null)
+        public MainWindow()
         {
-            button.Content = this.WindowState == WindowState.Maximized ? "🗗" : "🗖";
-        }
-    }
-
-    private void CloseButton_Click(object sender, RoutedEventArgs e)
-    {
-        this.Close();
-    }
-
-    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
-    {
-        base.OnPropertyChanged(change);
-        
-        if (change.Property == WindowStateProperty)
-        {
-            var button = this.FindControl<Button>("MaximizeButton");
-            if (button != null)
+            InitializeComponent();
+            
+            this.WhenActivated(disposables =>
             {
-                button.Content = this.WindowState == WindowState.Maximized ? "🗗" : "🗖";
+                if (DataContext is MainWindowViewModel viewModel)
+                {
+                    viewModel.Activator.Activate();
+                    
+                    Disposable.Create(() => viewModel.Activator.Deactivate())
+                        .DisposeWith(disposables);
+                }
+            });
+        }
+
+        public void TitleBar_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                BeginMoveDrag(e);
             }
+        }
+
+        public void MinimizeButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        public void MaximizeButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            
+            if (this.FindControl<Button>("MaximizeButton") is Button maxButton)
+            {
+                maxButton.Content = WindowState == WindowState.Maximized ? "🗗" : "🗖";
+            }
+        }
+
+        public void CloseButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            Close();
         }
     }
 }

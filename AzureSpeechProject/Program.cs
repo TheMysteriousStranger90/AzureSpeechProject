@@ -1,7 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.ReactiveUI;
 using System;
-using AzureSpeechProject.Configurations;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Services;
 using AzureSpeechProject.ViewModels;
@@ -37,12 +36,9 @@ class Program
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // Register configurations
-        services.AddSingleton<IEnvironmentConfiguration, EnvironmentConfiguration>();
-        
         // Register core services
         services.AddSingleton<ILogger, FileLogger>();
-        services.AddSingleton<SecretsService>();
+        services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<ITranscriptFileService, TranscriptFileService>();
         services.AddSingleton<AudioCaptureService>();
         services.AddSingleton<TranscriptionService>();

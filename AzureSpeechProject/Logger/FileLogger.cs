@@ -7,12 +7,23 @@ namespace AzureSpeechProject.Logger;
 
 public class FileLogger : ILogger
 {
-    private readonly string _logFilePath;
     private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
+    private string _logFilePath;
     
     public FileLogger()
     {
-        var logsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
+        UpdateLogPath();
+    }
+    
+    public void UpdateLogPath()
+    {
+        string parentDir = Path.GetDirectoryName(FileConstants.TranscriptsDirectory);
+        if (string.IsNullOrEmpty(parentDir))
+        {
+            parentDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        }
+        
+        var logsDirectory = Path.Combine(parentDir, "Logs");
         
         if (!Directory.Exists(logsDirectory))
         {
@@ -20,7 +31,7 @@ public class FileLogger : ILogger
         }
         
         var date = DateTime.Now.ToString("yyyyMMdd");
-        _logFilePath = Path.Combine(logsDirectory, $"app_log_{date}.txt");
+        _logFilePath = Path.Combine(logsDirectory, $"azure_speech_{date}.log");
     }
     
     public void Log(string message)
@@ -28,6 +39,14 @@ public class FileLogger : ILogger
         try
         {
             _lock.EnterWriteLock();
+            
+            string parentDir = Path.GetDirectoryName(FileConstants.TranscriptsDirectory);
+            string currentLogParent = Path.GetDirectoryName(Path.GetDirectoryName(_logFilePath));
+            
+            if (parentDir != currentLogParent)
+            {
+                UpdateLogPath();
+            }
             
             var logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
             
