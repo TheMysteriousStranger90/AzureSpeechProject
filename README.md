@@ -199,3 +199,10 @@ Bohdan Harabadzhyu
 [MIT](https://choosealicense.com/licenses/mit/)
 
 *This application is not affiliated with Microsoft Corporation. Azure and Azure Speech Services are registered trademarks of Microsoft Corporation.*
+
+## YouTube Review
+<details>
+<summary>📺 Watch Video Review</summary>
+
+[![YouTube](https://img.youtube.com/vi/m6Bu3btp9uw/maxresdefault.jpg)](https://youtu.be/m6Bu3btp9uw)
+</details>
