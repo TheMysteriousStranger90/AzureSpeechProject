@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 
+namespace AzureSpeechProject.Constants;
+
 public static class FileConstants
 {
     public static readonly string TranscriptsDirectory = Path.Combine(

@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using AzureSpeechProject.Constants;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
 
@@ -67,11 +68,6 @@ public class TranscriptFileService : ITranscriptFileService
         }
     }
     
-    public string GenerateTranscriptFilePath(string extension, string? languageCode = null)
-    {
-        return GenerateTranscriptFilePathAsync(extension, languageCode).GetAwaiter().GetResult();
-    }
-
     private async Task<string> GenerateTranscriptFilePathAsync(string extension, string? languageCode = null)
     {
         try

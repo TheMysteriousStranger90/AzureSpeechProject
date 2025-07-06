@@ -155,7 +155,7 @@
         <Setter Property="Background" Value="{DynamicResource RecordingBackgroundBrush}" />
     </Style>
 
-    <!-- Buttons -->
+    <!-- Unified Button Styles - All buttons have same Azure Blue color -->
     <Style Selector="Button.primary">
         <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
         <Setter Property="Foreground" Value="White" />
@@ -183,25 +183,27 @@
         </Setter>
     </Style>
 
+    <!-- No color change on hover -->
     <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Foreground" Value="White" />
         <Setter Property="Opacity" Value="0.9" />
     </Style>
 
     <Style Selector="Button.secondary">
-        <Setter Property="Background" Value="#F8F9FA" />
-        <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Foreground" Value="White" />
         <Setter Property="Padding" Value="20,10" />
         <Setter Property="CornerRadius" Value="25" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="MinWidth" Value="140" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <ControlTemplate>
@@ -220,10 +222,12 @@
     </Style>
 
     <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="#F8F9FA" />
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="Button.action">
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
         <Setter Property="Padding" Value="24,12" />
         <Setter Property="CornerRadius" Value="30" />
         <Setter Property="Foreground" Value="White" />
@@ -252,29 +256,42 @@
         </Setter>
     </Style>
 
+    <Style Selector="Button.action:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
     <Style Selector="Button.action:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Foreground" Value="White" />
         <Setter Property="Opacity" Value="0.9" />
     </Style>
 
-    <!-- Azure themed action buttons -->
+    <!-- Azure themed action buttons - all use same Azure Blue -->
     <Style Selector="Button.azure-start">
         <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="Button.azure-start:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="Button.azure-stop">
-        <Setter Property="Background" Value="{DynamicResource AzureRed}" />
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="Button.azure-stop:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource AzureRed}" />
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Foreground" Value="White" />
     </Style>
 
     <!-- Recording state buttons -->
     <Style Selector="Button.action.recording">
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="Foreground" Value="White" />
         <Setter Property="CornerRadius" Value="50" />
         <Setter Property="MinWidth" Value="180" />
         <Setter Property="MinHeight" Value="56" />
@@ -423,4 +440,10 @@
         <Setter Property="BorderBrush" Value="{DynamicResource AzurePrimaryBlue}" />
         <Setter Property="BorderThickness" Value="1" />
     </Style>
+    
+    <!-- Unified PathIcon styling for action buttons -->
+    <Style Selector="Button.action PathIcon, Button.azure-start PathIcon, Button.azure-stop PathIcon">
+        <Setter Property="Foreground" Value="Black" />
+    </Style>
+    
 </Styles>

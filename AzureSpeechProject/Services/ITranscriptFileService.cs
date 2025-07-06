@@ -7,10 +7,8 @@ namespace AzureSpeechProject.Services;
 public interface ITranscriptFileService
 {
     Task<string> SaveTranscriptAsync(
-        TranscriptionDocument transcript, 
-        TranscriptFormat format, 
+        TranscriptionDocument transcript,
+        TranscriptFormat format,
         CancellationToken cancellationToken = default,
         string? translatedLanguage = null);
-    
-    string GenerateTranscriptFilePath(string extension, string? languageCode = null);
 }

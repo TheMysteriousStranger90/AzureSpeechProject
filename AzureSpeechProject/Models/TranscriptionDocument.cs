@@ -10,13 +10,13 @@ public class TranscriptionDocument
     public string Language { get; set; } = "en-US";
     public DateTime StartTime { get; set; } = DateTime.Now;
     public DateTime? EndTime { get; set; }
-    
-    public string GetTextTranscript()
+
+    internal string GetTextTranscript()
     {
         return string.Join(Environment.NewLine, Segments.Select(s => s.ToString()));
     }
     
-    public string GetSrtTranscript()
+    internal string GetSrtTranscript()
     {
         var srtBuilder = new System.Text.StringBuilder();
         TimeSpan startOffset = Segments.FirstOrDefault()?.Timestamp.TimeOfDay ?? TimeSpan.Zero;
@@ -35,7 +35,7 @@ public class TranscriptionDocument
         
         return srtBuilder.ToString();
     }
-    
+
     private string FormatSrtTime(TimeSpan time)
     {
         return $"{time.Hours:D2}:{time.Minutes:D2}:{time.Seconds:D2},{time.Milliseconds:D3}";

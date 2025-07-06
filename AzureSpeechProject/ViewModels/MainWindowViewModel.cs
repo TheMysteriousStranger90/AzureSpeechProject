@@ -34,7 +34,6 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
             {
                 try
                 {
-                    // Загружаем настройки при активации
                     Observable.FromAsync(async () =>
                     {
                         StatusMessage = "Loading settings...";
@@ -42,7 +41,6 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                         _logger.Log("Settings preloaded in MainWindowViewModel");
                         StatusMessage = "Settings loaded successfully";
                         
-                        // Небольшая задержка, чтобы пользователь увидел сообщение
                         await System.Threading.Tasks.Task.Delay(1000);
                         StatusMessage = "Ready";
                     })
@@ -56,7 +54,6 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                         })
                     .DisposeWith(disposables);
 
-                    // Реактивно отслеживаем изменения статуса транскрипции
                     TranscriptionViewModel.WhenAnyValue(x => x.Status)
                         .Where(status => !string.IsNullOrWhiteSpace(status))
                         .ObserveOn(RxApp.MainThreadScheduler)
@@ -67,7 +64,6 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                         })
                         .DisposeWith(disposables);
 
-                    // Отслеживаем состояние записи для обновления статуса
                     TranscriptionViewModel.WhenAnyValue(x => x.IsRecording)
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(isRecording =>
@@ -83,12 +79,11 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                         })
                         .DisposeWith(disposables);
 
-                    // Отслеживаем ошибки в настройках
                     Observable.CombineLatest(
                         SettingsViewModel.WhenAnyValue(x => x.Region),
                         SettingsViewModel.WhenAnyValue(x => x.Key),
                         (region, key) => new { Region = region, Key = key })
-                        .Skip(1) // Пропускаем первоначальные значения
+                        .Skip(1)
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(settings =>
                         {
