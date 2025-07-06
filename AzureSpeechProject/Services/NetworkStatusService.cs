@@ -12,6 +12,7 @@ public class NetworkStatusService : INetworkStatusService
     public NetworkStatusService(ILogger logger)
     {
         _logger = logger;
+        _logger.Log("NetworkStatusService initialized");
     }
 
     public bool IsNetworkConnected()
@@ -33,12 +34,16 @@ public class NetworkStatusService : INetworkStatusService
     {
         try
         {
-            _logger.Log("Checking internet connectivity...");
             using var ping = new Ping();
-            var reply = await ping.SendPingAsync("8.8.8.8", 5000);
+            var reply = await ping.SendPingAsync("8.8.8.8", 2000);
             var isAvailable = reply.Status == IPStatus.Success;
             _logger.Log($"Internet connectivity check: {isAvailable} (Status: {reply.Status})");
             return isAvailable;
+        }
+        catch (PingException)
+        {
+            _logger.Log("Ping failed - no internet connection");
+            return false;
         }
         catch (Exception ex)
         {
