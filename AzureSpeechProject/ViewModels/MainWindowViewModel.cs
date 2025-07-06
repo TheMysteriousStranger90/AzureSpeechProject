@@ -25,39 +25,42 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
         try
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            TranscriptionViewModel = transcriptionViewModel ?? throw new ArgumentNullException(nameof(transcriptionViewModel));
+            TranscriptionViewModel =
+                transcriptionViewModel ?? throw new ArgumentNullException(nameof(transcriptionViewModel));
             SettingsViewModel = settingsViewModel ?? throw new ArgumentNullException(nameof(settingsViewModel));
 
             _logger.Log("MainWindowViewModel constructor completed successfully");
+
+// ...existing code...
 
             this.WhenActivated(disposables =>
             {
                 try
                 {
                     Observable.FromAsync(async () =>
-                    {
-                        StatusMessage = "Loading settings...";
-                        await SettingsViewModel.LoadSettingsAsync();
-                        _logger.Log("Settings preloaded in MainWindowViewModel");
-                        StatusMessage = "Settings loaded successfully";
-                        
-                        await System.Threading.Tasks.Task.Delay(1000);
-                        StatusMessage = "Ready";
-                    })
-                    .ObserveOn(RxApp.MainThreadScheduler)
-                    .Subscribe(
-                        _ => { },
-                        ex =>
                         {
-                            _logger.Log($"Error preloading settings in MainWindowViewModel: {ex.Message}");
-                            StatusMessage = "Error loading settings";
+                            StatusMessage = "Loading settings...";
+                            await SettingsViewModel.LoadSettingsAsync();
+                            _logger.Log("Settings preloaded in MainWindowViewModel");
+                            StatusMessage = "Settings loaded successfully";
+
+                            await System.Threading.Tasks.Task.Delay(1000);
+                            StatusMessage = "Ready";
                         })
-                    .DisposeWith(disposables);
+                        .ObserveOn(RxApp.MainThreadScheduler)
+                        .Subscribe(
+                            _ => { },
+                            ex =>
+                            {
+                                _logger.Log($"Error preloading settings in MainWindowViewModel: {ex.Message}");
+                                StatusMessage = "❌ Error loading settings";
+                            })
+                        .DisposeWith(disposables);
 
                     TranscriptionViewModel.WhenAnyValue(x => x.Status)
                         .Where(status => !string.IsNullOrWhiteSpace(status))
                         .ObserveOn(RxApp.MainThreadScheduler)
-                        .Subscribe(status => 
+                        .Subscribe(status =>
                         {
                             StatusMessage = status;
                             _logger.Log($"Status updated from TranscriptionViewModel: {StatusMessage}");
@@ -80,9 +83,9 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                         .DisposeWith(disposables);
 
                     Observable.CombineLatest(
-                        SettingsViewModel.WhenAnyValue(x => x.Region),
-                        SettingsViewModel.WhenAnyValue(x => x.Key),
-                        (region, key) => new { Region = region, Key = key })
+                            SettingsViewModel.WhenAnyValue(x => x.Region),
+                            SettingsViewModel.WhenAnyValue(x => x.Key),
+                            (region, key) => new { Region = region, Key = key })
                         .Skip(1)
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(settings =>
@@ -91,12 +94,12 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                             {
                                 if (!TranscriptionViewModel.IsRecording)
                                 {
-                                    StatusMessage = "Azure credentials not configured - Check Settings tab";
+                                    StatusMessage = "⚠️ Azure credentials not configured - Check Settings tab";
                                 }
                             }
                             else if (!TranscriptionViewModel.IsRecording)
                             {
-                                StatusMessage = "Ready to record";
+                                StatusMessage = "✅ Ready to record";
                             }
                         })
                         .DisposeWith(disposables);
@@ -106,7 +109,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                 catch (Exception ex)
                 {
                     _logger.Log($"Error during MainWindowViewModel activation: {ex.Message}");
-                    StatusMessage = "Error during initialization";
+                    StatusMessage = "❌ Error during initialization";
                 }
             });
         }

@@ -159,33 +159,6 @@ Higher quality settings may not improve accuracy and will use more bandwidth.
 - Check firewall settings for outbound HTTPS traffic
 - Verify Azure service availability in your region
 
-### Performance Optimization
-
-**For Best Results:**
-- Use a high-quality USB microphone
-- Record in a quiet environment
-- Maintain consistent speaking volume
-- Speak clearly and at a moderate pace
-
-**Resource Management:**
-- Close unnecessary applications during recording
-- Ensure sufficient disk space for transcripts
-- Monitor Azure Speech Service usage quotas
-
-## Security Best Practices
-
-🔐 **Credential Security**
-- Never share your Azure Speech Service keys
-- Use the show/hide feature to verify key entry
-- Rotate keys periodically in Azure Portal
-- Don't commit keys to version control
-
-🛡️ **Data Privacy**
-- Audio data is processed by Azure Speech Services
-- Review Azure's data handling policies
-- Consider data residency requirements
-- Implement network security measures
-
 ## Contributing
 
 Contributions are welcome. Please fork the repository and create a pull request with your changes.

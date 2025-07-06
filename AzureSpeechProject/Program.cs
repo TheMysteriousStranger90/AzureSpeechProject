@@ -40,6 +40,8 @@ class Program
         services.AddSingleton<ILogger, FileLogger>();
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<ITranscriptFileService, TranscriptFileService>();
+        services.AddSingleton<INetworkStatusService, NetworkStatusService>();
+        services.AddSingleton<IMicrophonePermissionService, MicrophonePermissionService>();
         services.AddSingleton<AudioCaptureService>();
         services.AddSingleton<TranscriptionService>();
         services.AddSingleton<TranslationService>();
