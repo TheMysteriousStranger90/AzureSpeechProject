@@ -446,4 +446,9 @@
         <Setter Property="Foreground" Value="Black" />
     </Style>
     
+    <!-- Status Bar Text Style -->
+    <Style Selector="TextBlock.StatusBar">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+    </Style>
 </Styles>
