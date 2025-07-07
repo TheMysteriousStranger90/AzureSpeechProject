@@ -20,7 +20,6 @@ public partial class App : Application
         {
             _serviceProvider = serviceProvider;
             _logger = _serviceProvider?.GetService<ILogger>();
-            _logger?.Log("App constructor called with ServiceProvider");
         }
         catch (Exception ex)
         {
@@ -28,16 +27,10 @@ public partial class App : Application
         }
     }
 
-    public App()
-    {
-        Console.WriteLine("App constructor called without ServiceProvider (Design mode)");
-    }
-
     public override void Initialize()
     {
         try
         {
-            _logger?.Log("Initializing Avalonia XAML...");
             AvaloniaXamlLoader.Load(this);
             _logger?.Log("Avalonia XAML loaded successfully");
         }

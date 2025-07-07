@@ -40,9 +40,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                 networkStatusService ?? throw new ArgumentNullException(nameof(networkStatusService));
             _microphonePermissionService =
                 microphonePermissionService ?? throw new ArgumentNullException(nameof(microphonePermissionService));
-
-            _logger.Log("MainWindowViewModel constructor completed successfully");
-
+            
             this.WhenActivated(disposables =>
             {
                 try
@@ -64,7 +62,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                             ex => _logger.Log($"Error checking microphone access: {ex.Message}")
                         )
                         .DisposeWith(disposables);
-
+/*
                     Observable.Interval(TimeSpan.FromMinutes(1))
                         .SelectMany(_ => Observable.FromAsync(CheckMicrophoneAccess))
                         .ObserveOn(RxApp.MainThreadScheduler)
@@ -90,7 +88,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                             ex => _logger.Log($"Error in periodic microphone check: {ex.Message}")
                         )
                         .DisposeWith(disposables);
-
+*/
                     Observable.FromAsync(CheckInternetConnectivity)
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(
@@ -102,18 +100,18 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                                 if (!isAvailable && IsMicrophoneAvailable)
                                 {
                                     StatusMessage =
-                                        "⚠️ No internet connection detected. Azure Speech Services will not work.";
+                                        "No internet connection detected. Azure Speech Services will not work.";
                                 }
                                 else if (!isAvailable && !IsMicrophoneAvailable)
                                 {
                                     StatusMessage =
-                                        "⚠️ No internet connection and microphone access denied. Check both.";
+                                        "No internet connection and microphone access denied. Check both.";
                                 }
                             },
                             ex => _logger.Log($"Error checking internet connectivity: {ex.Message}")
                         )
                         .DisposeWith(disposables);
-
+/*
                     Observable.Interval(TimeSpan.FromSeconds(30))
                         .SelectMany(_ => Observable.FromAsync(CheckInternetConnectivity))
                         .ObserveOn(RxApp.MainThreadScheduler)
@@ -155,7 +153,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                             ex => _logger.Log($"Error in periodic internet check: {ex.Message}")
                         )
                         .DisposeWith(disposables);
-
+*/
                     Observable.FromAsync(async () =>
                         {
                             StatusMessage = "Loading settings...";
@@ -215,7 +213,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                             {
                                 if (!TranscriptionViewModel.IsRecording)
                                 {
-                                    StatusMessage = "⚠️ Azure credentials not configured - Check Settings tab";
+                                    StatusMessage = "Azure credentials not configured - Check Settings tab";
                                 }
                             }
                             else if (!TranscriptionViewModel.IsRecording)
@@ -248,15 +246,15 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
 
         if (!IsInternetAvailable && !IsMicrophoneAvailable)
         {
-            StatusMessage = "⚠️ No internet connection and microphone access denied. Check both.";
+            StatusMessage = "No internet connection and microphone access denied. Check both.";
         }
         else if (!IsInternetAvailable)
         {
-            StatusMessage = "⚠️ No internet connection detected. Azure Speech Services will not work.";
+            StatusMessage = "No internet connection detected. Azure Speech Services will not work.";
         }
         else if (!IsMicrophoneAvailable)
         {
-            StatusMessage = "⚠️ Microphone access denied. Please grant microphone permissions in Windows Settings.";
+            StatusMessage = "Microphone access denied. Please grant microphone permissions in Windows Settings.";
         }
         else
         {
@@ -265,11 +263,11 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
 
             if (!hasAzureCredentials)
             {
-                StatusMessage = "⚠️ Azure credentials not configured - Check Settings tab";
+                StatusMessage = "Azure credentials not configured - Check Settings tab";
             }
             else
             {
-                StatusMessage = "✅ Ready to record";
+                StatusMessage = "Ready to record";
             }
         }
     }

@@ -12,7 +12,6 @@ public class NetworkStatusService : INetworkStatusService
     public NetworkStatusService(ILogger logger)
     {
         _logger = logger;
-        _logger.Log("NetworkStatusService initialized");
     }
 
     public bool IsNetworkConnected()
