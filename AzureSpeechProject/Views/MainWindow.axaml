@@ -37,6 +37,7 @@
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Padding" Value="20 12"/>
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="CornerRadius" Value="12,12,0,0"/>
             <Setter Property="Margin" Value="4,0,0,0"/>
         </Style>
@@ -44,10 +45,10 @@
             <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1,1,1,0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         </Style>
-        <Style Selector="TextBlock.StatusBar">
-            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
-            <Setter Property="FontSize" Value="12"/>
+        <Style Selector="TabItem:pointerover /template/ ContentPresenter">
+            <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextBrush}"/>
         </Style>
     </Window.Styles>
     

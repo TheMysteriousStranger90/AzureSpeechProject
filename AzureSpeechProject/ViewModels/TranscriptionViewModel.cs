@@ -20,6 +20,8 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
     private readonly TranslationService _translationService;
     private readonly ITranscriptFileService _fileService;
     private readonly AudioCaptureService _audioCaptureService;
+    private readonly INetworkStatusService _networkStatusService;
+    private readonly IMicrophonePermissionService _microphonePermissionService;
 
     [Reactive] public string CurrentTranscript { get; private set; } = string.Empty;
     [Reactive] public string CurrentTranslation { get; private set; } = string.Empty;
@@ -53,13 +55,17 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
         TranscriptionService transcriptionService,
         TranslationService translationService,
         ITranscriptFileService fileService,
-        AudioCaptureService audioCaptureService)
+        AudioCaptureService audioCaptureService,
+        INetworkStatusService networkStatusService,
+        IMicrophonePermissionService microphonePermissionService)
     {
-        _logger = logger;
-        _transcriptionService = transcriptionService;
-        _translationService = translationService;
-        _fileService = fileService;
-        _audioCaptureService = audioCaptureService;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _transcriptionService = transcriptionService ?? throw new ArgumentNullException(nameof(transcriptionService));
+        _translationService = translationService ?? throw new ArgumentNullException(nameof(translationService));
+        _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
+        _audioCaptureService = audioCaptureService ?? throw new ArgumentNullException(nameof(audioCaptureService));
+        _networkStatusService = networkStatusService ?? throw new ArgumentNullException(nameof(networkStatusService));
+        _microphonePermissionService = microphonePermissionService ?? throw new ArgumentNullException(nameof(microphonePermissionService));
 
         var canStart = this.WhenAnyValue(x => x.IsRecording, isRecording => !isRecording);
         StartCommand = ReactiveCommand.CreateFromTask(StartRecordingAsync, canStart);
@@ -122,14 +128,41 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
         _logger.Log("Starting recording process...");
         ClearTranscript();
         IsRecording = true;
-        Status = "Initializing...";
+        Status = "Checking prerequisites...";
 
         try
         {
+            if (!_networkStatusService.IsNetworkConnected())
+            {
+                Status = "❌ No network connection detected. Please check your internet connection.";
+                await StopRecordingAsync();
+                return;
+            }
+
+            Status = "Checking internet connectivity...";
+            if (!await _networkStatusService.IsInternetAvailableAsync())
+            {
+                Status = "❌ Internet connection unavailable. Azure Speech Services require internet access.";
+                await StopRecordingAsync();
+                return;
+            }
+
+            Status = "Checking microphone permissions...";
+            if (!await _microphonePermissionService.CheckMicrophonePermissionAsync())
+            {
+                Status = "❌ Microphone access denied. Please grant microphone permissions in Windows Settings.";
+                _logger.Log("Microphone permission check failed");
+                await StopRecordingAsync();
+                return;
+            }
+
+            Status = "Initializing services...";
+            
             var options = new TranscriptionOptions
                 { Language = "en-US", EnableProfanityFilter = true, EnableWordLevelTimestamps = true };
 
             await _transcriptionService.StartTranscriptionAsync(options);
+            
             if (EnableTranslation)
             {
                 await _translationService.StartTranslationAsync("en-US", SelectedTargetLanguage);
@@ -137,12 +170,30 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
 
             await _audioCaptureService.StartCapturingAsync();
 
-            Status = "Recording in progress... Speak now!";
+            Status = "🎙️ Recording in progress... Speak now!";
             _logger.Log("All services started successfully.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Status = "❌ Microphone access denied. Please grant microphone permissions in Windows Settings.";
+            _logger.Log($"Microphone permission error: {ex.Message}");
+            await StopRecordingAsync();
+        }
+        catch (System.Net.WebException ex)
+        {
+            Status = "❌ Network error. Please check your internet connection and try again.";
+            _logger.Log($"Network error starting recording: {ex.Message}");
+            await StopRecordingAsync();
+        }
+        catch (System.Net.Http.HttpRequestException ex)
+        {
+            Status = "❌ Unable to connect to Azure Speech Services. Check your internet connection.";
+            _logger.Log($"HTTP error starting recording: {ex.Message}");
+            await StopRecordingAsync();
         }
         catch (Exception ex)
         {
-            Status = $"Error starting recording: {ex.Message}";
+            Status = $"❌ Error starting recording: {ex.Message}";
             _logger.Log($"Error starting recording: {ex.Message}");
             await StopRecordingAsync();
         }
@@ -155,18 +206,36 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
         _logger.Log("Stopping recording process...");
         Status = "Stopping...";
 
-        await _audioCaptureService.StopCapturingAsync();
-
-        await _transcriptionService.StopTranscriptionAsync();
-        if (EnableTranslation)
+        try
         {
-            await _translationService.StopTranslationAsync();
-        }
+            await _audioCaptureService.StopCapturingAsync();
+            await _transcriptionService.StopTranscriptionAsync();
+            
+            if (EnableTranslation)
+            {
+                await _translationService.StopTranslationAsync();
+            }
 
-        _document = _transcriptionService.GetTranscriptionDocument();
-        IsRecording = false;
-        Status = $"Recording stopped. {_document.Segments.Count} segments captured.";
-        _logger.Log("All services stopped successfully.");
+            _document = _transcriptionService.GetTranscriptionDocument();
+            IsRecording = false;
+            
+            if (_document.Segments.Count > 0)
+            {
+                Status = $"✅ Recording stopped. {_document.Segments.Count} segments captured.";
+            }
+            else
+            {
+                Status = "⚠️ Recording stopped. No audio was captured.";
+            }
+            
+            _logger.Log("All services stopped successfully.");
+        }
+        catch (Exception ex)
+        {
+            Status = $"❌ Error stopping recording: {ex.Message}";
+            _logger.Log($"Error stopping recording: {ex.Message}");
+            IsRecording = false;
+        }
     }
 
     private async Task SaveTranscriptAsync()
@@ -175,7 +244,7 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
         try
         {
             var filePath = await _fileService.SaveTranscriptAsync(_document, SelectedOutputFormat);
-            Status = $"Transcript saved to: {filePath}";
+            Status = $"✅ Transcript saved to: {filePath}";
 
             if (EnableTranslation && !string.IsNullOrWhiteSpace(CurrentTranslation))
             {
@@ -206,12 +275,12 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
                     default,
                     SelectedTargetLanguage);
 
-                Status = $"Transcript and translation saved to: {Path.GetDirectoryName(filePath)}";
+                Status = $"✅ Transcript and translation saved to: {Path.GetDirectoryName(filePath)}";
             }
         }
         catch (Exception ex)
         {
-            Status = $"Error saving transcript: {ex.Message}";
+            Status = $"❌ Error saving transcript: {ex.Message}";
             _logger.Log($"Error saving transcript: {ex.Message}");
         }
     }
