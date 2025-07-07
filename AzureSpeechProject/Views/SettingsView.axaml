@@ -162,23 +162,11 @@
                             <TextBox Grid.Column="0" Text="{Binding OutputDirectory}" />
                             <Button Grid.Column="1" Content="Browse..."
                                     Command="{Binding BrowseCommand}"
-                                    Background="#0078D4" Foreground="White"
-                                    BorderThickness="0" CornerRadius="4"
-                                    Margin="8,4,0,8" Padding="12,8" VerticalAlignment="Top">
-                                <Button.Template>
-                                    <ControlTemplate>
-                                        <ContentPresenter x:Name="PART_ContentPresenter"
-                                                          Background="{TemplateBinding Background}"
-                                                          BorderBrush="{TemplateBinding BorderBrush}"
-                                                          BorderThickness="{TemplateBinding BorderThickness}"
-                                                          CornerRadius="{TemplateBinding CornerRadius}"
-                                                          Content="{TemplateBinding Content}"
-                                                          ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                          Padding="{TemplateBinding Padding}"
-                                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
-                                    </ControlTemplate>
-                                </Button.Template>
+                                    Classes="primary"
+                                    Margin="8,4,0,8" Padding="12,8" 
+                                    VerticalAlignment="Top"
+                                    MinWidth="0"
+                                    CornerRadius="4">
                             </Button>
                         </Grid>
                         <TextBlock Classes="description"

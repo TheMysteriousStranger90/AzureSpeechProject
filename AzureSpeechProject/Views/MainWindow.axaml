@@ -47,6 +47,9 @@
             <Setter Property="BorderThickness" Value="1,1,1,0"/>
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         </Style>
+        <Style Selector="TabItem:pointerover /template/ ContentPresenter">
+            <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextBrush}"/>
+        </Style>
     </Window.Styles>
     
     <Grid RowDefinitions="Auto,*,Auto">

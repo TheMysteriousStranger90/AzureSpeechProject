@@ -56,58 +56,108 @@ public class MicrophonePermissionService : IMicrophonePermissionService
                 _logger.Log("Starting Windows microphone permission check...");
                 var deviceCount = WaveInEvent.DeviceCount;
                 _logger.Log($"Found {deviceCount} audio input devices");
-                
+
                 if (deviceCount == 0)
                 {
                     _logger.Log("No microphone devices found");
                     return false;
                 }
 
+                for (int i = 0; i < deviceCount; i++)
+                {
+                    var capabilities = WaveInEvent.GetCapabilities(i);
+                    _logger.Log($"Device {i}: {capabilities.ProductName}");
+                }
+
                 var accessDenied = false;
-                
+                var initializationError = false;
+
                 try
                 {
                     using var waveIn = new WaveInEvent
                     {
-                        WaveFormat = new WaveFormat(8000, 1),
+                        WaveFormat = new WaveFormat(16000, 1),
                         DeviceNumber = 0,
-                        BufferMilliseconds = 50
+                        BufferMilliseconds = 100
                     };
 
                     var dataReceived = false;
-                    waveIn.DataAvailable += (s, e) => 
+                    var dataReceivedEvent = new TaskCompletionSource<bool>();
+
+                    waveIn.DataAvailable += (s, e) =>
                     {
                         if (e.BytesRecorded > 0)
                         {
                             dataReceived = true;
                             _logger.Log($"Microphone data received: {e.BytesRecorded} bytes");
+                            dataReceivedEvent.TrySetResult(true);
                         }
                     };
 
-                    waveIn.RecordingStopped += (s, e) => 
+                    waveIn.RecordingStopped += (s, e) =>
                     {
                         if (e.Exception != null)
                         {
                             _logger.Log($"Recording stopped with exception: {e.Exception.Message}");
-                            accessDenied = true;
+                            if (e.Exception is UnauthorizedAccessException)
+                            {
+                                accessDenied = true;
+                            }
+                            else
+                            {
+                                initializationError = true;
+                            }
+
+                            dataReceivedEvent.TrySetResult(false);
+                        }
+                        else if (!dataReceived)
+                        {
+                            dataReceivedEvent.TrySetResult(false);
                         }
                     };
 
                     _logger.Log("Starting microphone test recording...");
-                    waveIn.StartRecording();
-                    
-                    await Task.Delay(500);
-                    
-                    waveIn.StopRecording();
-                    
-                    await Task.Delay(100);
-                    
-                    if (accessDenied)
+
+                    try
                     {
-                        _logger.Log("Microphone access denied during recording");
+                        waveIn.StartRecording();
+
+                        var receivedDataTask = dataReceivedEvent.Task;
+                        var timeoutTask = Task.Delay(3000);
+                        var completedTask = await Task.WhenAny(receivedDataTask, timeoutTask);
+
+                        waveIn.StopRecording();
+
+                        if (completedTask == timeoutTask && !dataReceived)
+                        {
+                            _logger.Log("Microphone test timed out - no data received within 3 seconds");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Log($"Error during microphone recording test: {ex.Message}");
                         return false;
                     }
-                    
+
+                    await Task.Delay(200);
+
+                    if (accessDenied)
+                    {
+                        _logger.Log("Microphone access explicitly denied");
+                        return false;
+                    }
+
+                    if (initializationError)
+                    {
+                        _logger.Log("Microphone initialization error occurred");
+                        if (deviceCount > 1)
+                        {
+                            _logger.Log("Trying alternative microphone device...");
+                        }
+
+                        return false;
+                    }
+
                     if (dataReceived)
                     {
                         _logger.Log("Microphone access verified - data received");
@@ -115,8 +165,9 @@ public class MicrophonePermissionService : IMicrophonePermissionService
                     }
                     else
                     {
-                        _logger.Log("Microphone accessible but no data received - possible permission issue");
-                        return false;
+                        _logger.Log("Microphone accessible but no data received - check if microphone is muted");
+                        
+                        return true;
                     }
                 }
                 catch (UnauthorizedAccessException ex)
@@ -127,6 +178,11 @@ public class MicrophonePermissionService : IMicrophonePermissionService
                 catch (System.Runtime.InteropServices.COMException ex)
                 {
                     _logger.Log($"COM error accessing microphone: {ex.Message} (HResult: {ex.HResult:X})");
+                    if (ex.HResult == -2147023728)
+                    {
+                        _logger.Log("This appears to be a Windows permission issue");
+                    }
+
                     return false;
                 }
                 catch (InvalidOperationException ex)
