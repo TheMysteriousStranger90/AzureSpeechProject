@@ -40,7 +40,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                 networkStatusService ?? throw new ArgumentNullException(nameof(networkStatusService));
             _microphonePermissionService =
                 microphonePermissionService ?? throw new ArgumentNullException(nameof(microphonePermissionService));
-            
+
             this.WhenActivated(disposables =>
             {
                 try
@@ -62,33 +62,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                             ex => _logger.Log($"Error checking microphone access: {ex.Message}")
                         )
                         .DisposeWith(disposables);
-/*
-                    Observable.Interval(TimeSpan.FromMinutes(1))
-                        .SelectMany(_ => Observable.FromAsync(CheckMicrophoneAccess))
-                        .ObserveOn(RxApp.MainThreadScheduler)
-                        .Subscribe(
-                            isAvailable =>
-                            {
-                                if (isAvailable != IsMicrophoneAvailable)
-                                {
-                                    IsMicrophoneAvailable = isAvailable;
-                                    _logger.Log($"Microphone access changed: {isAvailable}");
 
-                                    if (!isAvailable && !TranscriptionViewModel.IsRecording)
-                                    {
-                                        StatusMessage =
-                                            "⚠️ Microphone access denied. Please grant microphone permissions in Windows Settings.";
-                                    }
-                                    else if (isAvailable && !TranscriptionViewModel.IsRecording && IsInternetAvailable)
-                                    {
-                                        StatusMessage = "✅ Microphone access granted. Ready to record.";
-                                    }
-                                }
-                            },
-                            ex => _logger.Log($"Error in periodic microphone check: {ex.Message}")
-                        )
-                        .DisposeWith(disposables);
-*/
                     Observable.FromAsync(CheckInternetConnectivity)
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(
@@ -111,49 +85,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                             ex => _logger.Log($"Error checking internet connectivity: {ex.Message}")
                         )
                         .DisposeWith(disposables);
-/*
-                    Observable.Interval(TimeSpan.FromSeconds(30))
-                        .SelectMany(_ => Observable.FromAsync(CheckInternetConnectivity))
-                        .ObserveOn(RxApp.MainThreadScheduler)
-                        .Subscribe(
-                            isAvailable =>
-                            {
-                                if (isAvailable != IsInternetAvailable)
-                                {
-                                    IsInternetAvailable = isAvailable;
-                                    _logger.Log($"Internet connectivity changed: {isAvailable}");
 
-                                    if (!isAvailable && !TranscriptionViewModel.IsRecording)
-                                    {
-                                        if (!IsMicrophoneAvailable)
-                                        {
-                                            StatusMessage =
-                                                "⚠️ No internet connection and microphone access denied. Check both.";
-                                        }
-                                        else
-                                        {
-                                            StatusMessage =
-                                                "⚠️ Internet connection lost. Azure Speech Services will not work.";
-                                        }
-                                    }
-                                    else if (isAvailable && !TranscriptionViewModel.IsRecording)
-                                    {
-                                        if (!IsMicrophoneAvailable)
-                                        {
-                                            StatusMessage =
-                                                "⚠️ Microphone access denied. Please grant microphone permissions.";
-                                        }
-                                        else
-                                        {
-                                            StatusMessage = "✅ Internet connection restored. Ready to record.";
-                                        }
-                                    }
-                                }
-                            },
-                            ex => _logger.Log($"Error in periodic internet check: {ex.Message}")
-                        )
-                        .DisposeWith(disposables);
-*/
                     Observable.FromAsync(async () =>
                         {
                             StatusMessage = "Loading settings...";

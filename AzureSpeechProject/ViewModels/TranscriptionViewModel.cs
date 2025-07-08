@@ -135,6 +135,7 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
 
         try
         {
+            /*
             if (!_networkStatusService.IsNetworkConnected())
             {
                 Status = "❌ No network connection detected. Please check your internet connection.";
@@ -150,7 +151,8 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
                 await StopRecordingAsync();
                 return;
             }
-
+            */
+            
             Status = "Initializing services...";
             
             var settings = await _settingsService.LoadSettingsAsync();
@@ -161,7 +163,7 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
             
             if (EnableTranslation)
             {
-                await _translationService.StartTranslationAsync("en-US", SelectedTargetLanguage);
+                await _translationService.StartTranslationAsync(options.Language, SelectedTargetLanguage);
             }
 
             await _audioCaptureService.StartCapturingAsync();

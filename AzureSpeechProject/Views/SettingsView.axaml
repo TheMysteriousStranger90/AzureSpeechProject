@@ -139,7 +139,7 @@
                         </Grid>
 
                         <TextBlock Classes="description"
-                                   Text="Note: 16kHz, 16-bit, mono (1 channel) provides the best results with Azure Speech Services. Higher quality audio requires more bandwidth but may not improve accuracy." />
+                                   Text="Note: 16kHz, 16-bit, mono (1 channel) provides the best results with Azure Speech Services." />
                     </StackPanel>
                 </Border>
 
