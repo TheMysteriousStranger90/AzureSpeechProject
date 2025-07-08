@@ -22,6 +22,7 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
     private readonly AudioCaptureService _audioCaptureService;
     private readonly INetworkStatusService _networkStatusService;
     private readonly IMicrophonePermissionService _microphonePermissionService;
+    private readonly ISettingsService _settingsService;
 
     [Reactive] public string CurrentTranscript { get; private set; } = string.Empty;
     [Reactive] public string CurrentTranslation { get; private set; } = string.Empty;
@@ -57,7 +58,8 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
         ITranscriptFileService fileService,
         AudioCaptureService audioCaptureService,
         INetworkStatusService networkStatusService,
-        IMicrophonePermissionService microphonePermissionService)
+        IMicrophonePermissionService microphonePermissionService,
+        ISettingsService settingsService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _transcriptionService = transcriptionService ?? throw new ArgumentNullException(nameof(transcriptionService));
@@ -66,6 +68,7 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
         _audioCaptureService = audioCaptureService ?? throw new ArgumentNullException(nameof(audioCaptureService));
         _networkStatusService = networkStatusService ?? throw new ArgumentNullException(nameof(networkStatusService));
         _microphonePermissionService = microphonePermissionService ?? throw new ArgumentNullException(nameof(microphonePermissionService));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
 
         var canStart = this.WhenAnyValue(x => x.IsRecording, isRecording => !isRecording);
         StartCommand = ReactiveCommand.CreateFromTask(StartRecordingAsync, canStart);
@@ -132,21 +135,14 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
 
         try
         {
+            /*
             if (!_networkStatusService.IsNetworkConnected())
             {
                 Status = "❌ No network connection detected. Please check your internet connection.";
                 await StopRecordingAsync();
                 return;
             }
-
-            Status = "Checking internet connectivity...";
-            if (!await _networkStatusService.IsInternetAvailableAsync())
-            {
-                Status = "❌ Internet connection unavailable. Azure Speech Services require internet access.";
-                await StopRecordingAsync();
-                return;
-            }
-
+            
             Status = "Checking microphone permissions...";
             if (!await _microphonePermissionService.CheckMicrophonePermissionAsync())
             {
@@ -155,17 +151,19 @@ public class TranscriptionViewModel : ViewModelBase, IActivatableViewModel
                 await StopRecordingAsync();
                 return;
             }
-
+            */
+            
             Status = "Initializing services...";
             
-            var options = new TranscriptionOptions
-                { Language = "en-US", EnableProfanityFilter = true, EnableWordLevelTimestamps = true };
+            var settings = await _settingsService.LoadSettingsAsync();
+            var options = new TranscriptionOptions { 
+                Language = settings.SpeechLanguage, EnableProfanityFilter = true, EnableWordLevelTimestamps = true };
 
             await _transcriptionService.StartTranscriptionAsync(options);
             
             if (EnableTranslation)
             {
-                await _translationService.StartTranslationAsync("en-US", SelectedTargetLanguage);
+                await _translationService.StartTranslationAsync(options.Language, SelectedTargetLanguage);
             }
 
             await _audioCaptureService.StartCapturingAsync();

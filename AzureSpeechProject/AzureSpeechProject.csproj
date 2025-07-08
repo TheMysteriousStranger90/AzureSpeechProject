@@ -8,9 +8,9 @@
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <Authors>Bohdan Harabadzhyu</Authors>
         <ApplicationIcon>./Assets/icon.ico</ApplicationIcon>
-        <AssemblyVersion>1.1.0.0</AssemblyVersion>
-        <FileVersion>1.1.0.0</FileVersion>
-        <InformationalVersion>1.1.0.0</InformationalVersion>
+        <AssemblyVersion>1.1.1.0</AssemblyVersion>
+        <FileVersion>1.1.1.0</FileVersion>
+        <InformationalVersion>1.1.1.0</InformationalVersion>
         <Product>Azure Speech Recognition and Translation</Product>
         <Description>A desktop application built with Avalonia UI that provides real-time speech recognition and translation using Azure Speech Services. Convert spoken words into text and translate them into multiple languages with professional-grade accuracy.</Description>
         <Copyright>Copyright © Bohdan Harabadzhyu</Copyright>

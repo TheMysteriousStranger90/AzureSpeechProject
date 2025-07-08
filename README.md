@@ -173,6 +173,10 @@ Bohdan Harabadzhyu
 
 *This application is not affiliated with Microsoft Corporation. Azure and Azure Speech Services are registered trademarks of Microsoft Corporation.*
 
+## SourceForge
+
+[![Download LogAnalyzerForWindows](https://a.fsdn.com/con/app/sf-download-button)](https://sourceforge.net/projects/azurespeechproject/files/latest/download)
+
 ## YouTube Review
 <details>
 <summary>📺 Watch Video Review</summary>
