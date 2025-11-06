@@ -14,6 +14,7 @@ public class SettingsViewModel : ReactiveObject, IActivatableViewModel
 {
     private readonly ILogger _logger;
     private readonly ISettingsService _settingsService;
+    private CancellationTokenSource? _operationCts;
 
     public ViewModelActivator Activator { get; } = new ViewModelActivator();
 
@@ -68,22 +69,29 @@ public class SettingsViewModel : ReactiveObject, IActivatableViewModel
 
         this.WhenActivated(disposables =>
         {
-            Observable.FromAsync(LoadSettingsAsync)
+            _operationCts = new CancellationTokenSource();
+
+            Observable.FromAsync(() => LoadSettingsAsync(_operationCts.Token))
                 .ObserveOn(RxApp.MainThreadScheduler)
                 .Subscribe(
                     _ => _logger.Log("Settings loaded on activation"),
                     ex => _logger.Log($"Error loading settings on activation: {ex.Message}"))
                 .DisposeWith(disposables);
 
-            Disposable.Create(() => { }).DisposeWith(disposables);
+            Disposable.Create(() =>
+            {
+                _operationCts?.Cancel();
+                _operationCts?.Dispose();
+                _operationCts = null;
+            }).DisposeWith(disposables);
         });
     }
 
-    public async Task LoadSettingsAsync()
+    public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var settings = await _settingsService.LoadSettingsAsync().ConfigureAwait(false);
+            var settings = await _settingsService.LoadSettingsAsync(cancellationToken).ConfigureAwait(false);
 
             _logger.Log($"Loaded from service - OutputDirectory: '{settings.OutputDirectory}'");
             _logger.Log($"Current ViewModel OutputDirectory before update: '{OutputDirectory}'");
@@ -113,6 +121,11 @@ public class SettingsViewModel : ReactiveObject, IActivatableViewModel
 
             _logger.Log($"Final ViewModel OutputDirectory: '{OutputDirectory}'");
         }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Settings loading was cancelled");
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.Log($"❌ Error loading settings in ViewModel: {ex.Message}");
@@ -132,6 +145,8 @@ public class SettingsViewModel : ReactiveObject, IActivatableViewModel
 
     private async Task SaveSettingsAsync()
     {
+        var saveCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
         try
         {
             _logger.Log("SaveSettingsAsync called in ViewModel");
@@ -150,8 +165,13 @@ public class SettingsViewModel : ReactiveObject, IActivatableViewModel
             };
 
             _logger.Log("Created AppSettings object, calling service SaveSettingsAsync");
-            await _settingsService.SaveSettingsAsync(settings).ConfigureAwait(false);
+            await _settingsService.SaveSettingsAsync(settings, saveCts.Token).ConfigureAwait(false);
             _logger.Log("Settings saved from ViewModel successfully");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Settings save was cancelled or timed out");
+            throw;
         }
         catch (Exception ex)
         {
@@ -159,20 +179,35 @@ public class SettingsViewModel : ReactiveObject, IActivatableViewModel
             _logger.Log($"Stack trace: {ex.StackTrace}");
             throw;
         }
+        finally
+        {
+            saveCts.Dispose();
+        }
     }
 
     private async Task ResetSettingsAsync()
     {
+        var resetCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
         try
         {
-            await _settingsService.ResetToDefaultsAsync().ConfigureAwait(false);
-            await LoadSettingsAsync().ConfigureAwait(false);
+            await _settingsService.ResetToDefaultsAsync(resetCts.Token).ConfigureAwait(false);
+            await LoadSettingsAsync(resetCts.Token).ConfigureAwait(false);
             _logger.Log("Settings reset from ViewModel");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Settings reset was cancelled or timed out");
+            throw;
         }
         catch (Exception ex)
         {
             _logger.Log($"Error resetting settings from ViewModel: {ex.Message}");
             throw;
+        }
+        finally
+        {
+            resetCts.Dispose();
         }
     }
 

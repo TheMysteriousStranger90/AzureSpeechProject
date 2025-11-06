@@ -12,6 +12,7 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
     private readonly ILogger _logger;
     private readonly INetworkStatusService _networkStatusService;
     private readonly IMicrophonePermissionService _microphonePermissionService;
+    private CancellationTokenSource? _initializationCts;
 
     public ViewModelActivator Activator { get; } = new ViewModelActivator();
 
@@ -40,7 +41,10 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
             {
                 try
                 {
-                    Observable.FromAsync(CheckMicrophoneAccess)
+                    _initializationCts = new CancellationTokenSource();
+                    var token = _initializationCts.Token;
+
+                    Observable.FromAsync(() => CheckMicrophoneAccess(token))
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(
                             isAvailable =>
@@ -54,11 +58,21 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
                                         "⚠️ Microphone access denied. Please grant microphone permissions in Windows Settings.";
                                 }
                             },
-                            ex => _logger.Log($"Error checking microphone access: {ex.Message}")
+                            ex =>
+                            {
+                                if (ex is OperationCanceledException)
+                                {
+                                    _logger.Log("Microphone check was cancelled");
+                                }
+                                else
+                                {
+                                    _logger.Log($"Error checking microphone access: {ex.Message}");
+                                }
+                            }
                         )
                         .DisposeWith(disposables);
 
-                    Observable.FromAsync(CheckInternetConnectivity)
+                    Observable.FromAsync(() => CheckInternetConnectivity(token))
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(
                             isAvailable =>
@@ -77,28 +91,48 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
                                         "No internet connection and microphone access denied. Check both.";
                                 }
                             },
-                            ex => _logger.Log($"Error checking internet connectivity: {ex.Message}")
+                            ex =>
+                            {
+                                if (ex is OperationCanceledException)
+                                {
+                                    _logger.Log("Internet check was cancelled");
+                                }
+                                else
+                                {
+                                    _logger.Log($"Error checking internet connectivity: {ex.Message}");
+                                }
+                            }
                         )
                         .DisposeWith(disposables);
 
                     Observable.FromAsync(async () =>
                         {
-                            StatusMessage = "Loading settings...";
-                            await SettingsViewModel.LoadSettingsAsync().ConfigureAwait(false);
-                            _logger.Log("Settings preloaded in MainWindowViewModel");
-                            StatusMessage = "Settings loaded successfully";
+                            try
+                            {
+                                StatusMessage = "Loading settings...";
+                                await SettingsViewModel.LoadSettingsAsync(token).ConfigureAwait(false);
+                                _logger.Log("Settings preloaded in MainWindowViewModel");
+                                StatusMessage = "Settings loaded successfully";
 
-                            await Task.Delay(1000).ConfigureAwait(false);
+                                await Task.Delay(1000, token).ConfigureAwait(false);
 
-                            UpdateStatusMessage();
+                                UpdateStatusMessage();
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                _logger.Log("Settings loading was cancelled");
+                            }
                         })
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(
                             _ => { },
                             ex =>
                             {
-                                _logger.Log($"Error preloading settings in MainWindowViewModel: {ex.Message}");
-                                StatusMessage = "❌ Error loading settings";
+                                if (ex is not OperationCanceledException)
+                                {
+                                    _logger.Log($"Error preloading settings in MainWindowViewModel: {ex.Message}");
+                                    StatusMessage = "❌ Error loading settings";
+                                }
                             })
                         .DisposeWith(disposables);
 
@@ -149,6 +183,13 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
                             }
                         })
                         .DisposeWith(disposables);
+
+                    Disposable.Create(() =>
+                    {
+                        _initializationCts?.Cancel();
+                        _initializationCts?.Dispose();
+                        _initializationCts = null;
+                    }).DisposeWith(disposables);
 
                     _logger.Log("MainWindowViewModel activated successfully");
                 }
@@ -204,7 +245,7 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
         }
     }
 
-    private async Task<bool> CheckInternetConnectivity()
+    private async Task<bool> CheckInternetConnectivity(CancellationToken cancellationToken)
     {
         try
         {
@@ -216,9 +257,14 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
             }
 
             _logger.Log("Checking internet connectivity...");
-            var isAvailable = await _networkStatusService.IsInternetAvailableAsync().ConfigureAwait(false);
+            var isAvailable = await _networkStatusService.IsInternetAvailableAsync(cancellationToken).ConfigureAwait(false);
             _logger.Log($"Internet connection available: {isAvailable}");
             return isAvailable;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Internet connectivity check was cancelled");
+            throw;
         }
         catch (Exception ex)
         {
@@ -227,14 +273,19 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
         }
     }
 
-    private async Task<bool> CheckMicrophoneAccess()
+    private async Task<bool> CheckMicrophoneAccess(CancellationToken cancellationToken)
     {
         try
         {
             _logger.Log("Checking microphone access...");
-            var hasAccess = await _microphonePermissionService.CheckMicrophonePermissionAsync().ConfigureAwait(false);
+            var hasAccess = await _microphonePermissionService.CheckMicrophonePermissionAsync(cancellationToken).ConfigureAwait(false);
             _logger.Log($"Microphone access: {hasAccess}");
             return hasAccess;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Microphone access check was cancelled");
+            throw;
         }
         catch (Exception ex)
         {

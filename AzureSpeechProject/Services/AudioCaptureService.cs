@@ -11,6 +11,7 @@ public class AudioCaptureService : IDisposable
     private bool _isCapturing;
     private bool _disposed;
     private readonly SemaphoreSlim _captureLock = new(1, 1);
+    private CancellationTokenSource? _captureCts;
 
     public AudioCaptureService(ILogger logger, ISettingsService settingsService)
     {
@@ -22,6 +23,7 @@ public class AudioCaptureService : IDisposable
     public async Task StartCapturingAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (_isCapturing)
         {
@@ -29,9 +31,12 @@ public class AudioCaptureService : IDisposable
             return;
         }
 
+        await _captureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var settings = await _settingsService.LoadSettingsAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var settings = await _settingsService.LoadSettingsAsync(cancellationToken).ConfigureAwait(false);
 
             _waveIn = new WaveInEvent
             {
@@ -42,51 +47,73 @@ public class AudioCaptureService : IDisposable
             _waveIn.DataAvailable += WaveIn_DataAvailable;
             _waveIn.RecordingStopped += WaveIn_RecordingStopped;
 
+            _captureCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
             _waveIn.StartRecording();
             _isCapturing = true;
 
             _logger.Log(
                 $"Started audio capture: {settings.SampleRate}Hz, {settings.BitsPerSample}-bit, {settings.Channels} channel(s)");
         }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Audio capture start was cancelled");
+            CleanupCapture();
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.Log($"Failed to start audio capture: {ex.Message}");
+            CleanupCapture();
             throw new InvalidOperationException($"Audio capture initialization failed: {ex.Message}", ex);
+        }
+        finally
+        {
+            _captureLock.Release();
         }
     }
 
-    public void StopCapturing()
+    public async Task StopCapturingAsync(CancellationToken cancellationToken = default)
     {
         if (_disposed || (!_isCapturing && _waveIn == null))
         {
             return;
         }
 
+        await _captureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            _captureCts?.CancelAsync();
+
             if (_waveIn != null)
             {
-                _waveIn.StopRecording();
+                await Task.Run(() => _waveIn.StopRecording(), cancellationToken).ConfigureAwait(false);
                 _logger.Log("Audio capture stop requested");
             }
+
+            CleanupCapture();
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Audio capture stop was cancelled");
+            throw;
         }
         catch (Exception ex)
         {
             _logger.Log($"Error stopping audio capture: {ex.Message}");
             throw;
         }
-    }
-
-    public async Task StopCapturingAsync()
-    {
-        await Task.Run(() => StopCapturing()).ConfigureAwait(false);
+        finally
+        {
+            _captureLock.Release();
+        }
     }
 
     public event EventHandler<AudioCapturedEventArgs>? AudioCaptured;
 
     private void WaveIn_DataAvailable(object? sender, WaveInEventArgs e)
     {
-        if (_disposed || !_isCapturing)
+        if (_disposed || !_isCapturing || _captureCts?.Token.IsCancellationRequested == true)
             return;
 
         try
@@ -104,7 +131,6 @@ public class AudioCaptureService : IDisposable
         catch (Exception ex)
         {
             _logger.Log($"Error processing audio data: {ex.Message}");
-            throw;
         }
     }
 
@@ -119,6 +145,13 @@ public class AudioCaptureService : IDisposable
         }
     }
 
+    private void CleanupCapture()
+    {
+        _isCapturing = false;
+        _captureCts?.Dispose();
+        _captureCts = null;
+    }
+
     public void Dispose()
     {
         Dispose(true);
@@ -131,10 +164,12 @@ public class AudioCaptureService : IDisposable
         {
             try
             {
-                StopCapturing();
+                _captureCts?.Cancel();
+                _captureCts?.Dispose();
 
                 if (_waveIn != null)
                 {
+                    _waveIn.StopRecording();
                     _waveIn.DataAvailable -= WaveIn_DataAvailable;
                     _waveIn.RecordingStopped -= WaveIn_RecordingStopped;
                     _waveIn.Dispose();
@@ -147,7 +182,6 @@ public class AudioCaptureService : IDisposable
             catch (Exception ex)
             {
                 _logger.Log($"Error during AudioCaptureService disposal: {ex.Message}");
-                throw;
             }
 
             _disposed = true;

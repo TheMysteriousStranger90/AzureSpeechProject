@@ -18,6 +18,7 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
     private readonly ITranscriptFileService _fileService;
     private readonly AudioCaptureService _audioCaptureService;
     private readonly ISettingsService _settingsService;
+    private CancellationTokenSource? _recordingCts;
 
     [Reactive] public string CurrentTranscript { get; private set; } = string.Empty;
     [Reactive] public string CurrentTranslation { get; private set; } = string.Empty;
@@ -104,6 +105,12 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
                 .Subscribe(HandleTranslationUpdated,
                     ex => _logger.Log($"Error in translation subscription: {ex.Message}"))
                 .DisposeWith(disposables);
+
+            Disposable.Create(() =>
+            {
+                _recordingCts?.Cancel();
+                _recordingCts?.Dispose();
+            }).DisposeWith(disposables);
         });
     }
 
@@ -123,12 +130,17 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
     {
         _logger.Log("Starting recording process...");
         ClearTranscript();
+
+        _recordingCts?.CancelAsync();
+        _recordingCts?.Dispose();
+        _recordingCts = new CancellationTokenSource();
+
         IsRecording = true;
         Status = "Initializing services...";
 
         try
         {
-            var settings = await _settingsService.LoadSettingsAsync().ConfigureAwait(false);
+            var settings = await _settingsService.LoadSettingsAsync(_recordingCts.Token).ConfigureAwait(false);
             var options = new TranscriptionOptions
             {
                 Language = settings.SpeechLanguage,
@@ -136,18 +148,26 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
                 EnableWordLevelTimestamps = true
             };
 
-            await _transcriptionService.StartTranscriptionAsync(options).ConfigureAwait(false);
+            await _transcriptionService.StartTranscriptionAsync(options, _recordingCts.Token).ConfigureAwait(false);
 
             if (EnableTranslation)
             {
-                await _translationService.StartTranslationAsync(options.Language, SelectedTargetLanguage)
-                    .ConfigureAwait(false);
+                await _translationService.StartTranslationAsync(
+                    options.Language,
+                    SelectedTargetLanguage,
+                    _recordingCts.Token).ConfigureAwait(false);
             }
 
-            await _audioCaptureService.StartCapturingAsync().ConfigureAwait(false);
+            await _audioCaptureService.StartCapturingAsync(_recordingCts.Token).ConfigureAwait(false);
 
             Status = "🎙️ Recording in progress... Speak now!";
             _logger.Log("All services started successfully.");
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Recording was cancelled";
+            _logger.Log("Recording start was cancelled");
+            await StopRecordingAsync().ConfigureAwait(false);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -182,14 +202,18 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
         _logger.Log("Stopping recording process...");
         Status = "Stopping...";
 
+        var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
         try
         {
-            await _audioCaptureService.StopCapturingAsync().ConfigureAwait(false);
-            await _transcriptionService.StopTranscriptionAsync().ConfigureAwait(false);
+            _recordingCts?.CancelAsync();
+
+            await _audioCaptureService.StopCapturingAsync(stopCts.Token).ConfigureAwait(false);
+            await _transcriptionService.StopTranscriptionAsync(stopCts.Token).ConfigureAwait(false);
 
             if (EnableTranslation)
             {
-                await _translationService.StopTranslationAsync().ConfigureAwait(false);
+                await _translationService.StopTranslationAsync(stopCts.Token).ConfigureAwait(false);
             }
 
             _document = _transcriptionService.GetTranscriptionDocument();
@@ -206,21 +230,39 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
 
             _logger.Log("All services stopped successfully.");
         }
+        catch (OperationCanceledException)
+        {
+            Status = "⚠️ Stop operation timed out or was cancelled";
+            _logger.Log("Stop recording was cancelled or timed out");
+            IsRecording = false;
+        }
         catch (Exception ex)
         {
             Status = $"❌ Error stopping recording: {ex.Message}";
             _logger.Log($"Error stopping recording: {ex.Message}");
             IsRecording = false;
         }
+        finally
+        {
+            stopCts.Dispose();
+            _recordingCts?.Dispose();
+            _recordingCts = null;
+        }
     }
 
     private async Task SaveTranscriptAsync()
     {
         Status = "Saving transcript...";
+
+        var saveCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
         try
         {
-            var filePath = await _fileService.SaveTranscriptAsync(_document, SelectedOutputFormat)
-                .ConfigureAwait(false);
+            var filePath = await _fileService.SaveTranscriptAsync(
+                _document,
+                SelectedOutputFormat,
+                saveCts.Token).ConfigureAwait(false);
+
             Status = $"✅ Transcript saved to: {filePath}";
 
             if (EnableTranslation && !string.IsNullOrWhiteSpace(CurrentTranslation))
@@ -249,16 +291,25 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
                 await _fileService.SaveTranscriptAsync(
                     translationDocument,
                     SelectedOutputFormat,
-                    default,
+                    saveCts.Token,
                     SelectedTargetLanguage).ConfigureAwait(false);
 
                 Status = $"✅ Transcript and translation saved to: {Path.GetDirectoryName(filePath)}";
             }
         }
+        catch (OperationCanceledException)
+        {
+            Status = "⚠️ Save operation was cancelled or timed out";
+            _logger.Log("Save transcript was cancelled");
+        }
         catch (Exception ex)
         {
             Status = $"❌ Error saving transcript: {ex.Message}";
             _logger.Log($"Error saving transcript: {ex.Message}");
+        }
+        finally
+        {
+            saveCts.Dispose();
         }
     }
 

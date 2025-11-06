@@ -13,17 +13,24 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
         _logger = logger;
     }
 
-    public async Task<bool> CheckMicrophonePermissionAsync()
+    public async Task<bool> CheckMicrophonePermissionAsync(CancellationToken cancellationToken = default)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _logger.Log("CheckMicrophonePermissionAsync called");
             if (OperatingSystem.IsWindows())
             {
-                return await CheckWindowsMicrophonePermissionAsync().ConfigureAwait(false);
+                return await CheckWindowsMicrophonePermissionAsync(cancellationToken).ConfigureAwait(false);
             }
 
             return true;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Microphone permission check was cancelled");
+            throw;
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -37,12 +44,19 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
         }
     }
 
-    public async Task<bool> RequestMicrophonePermissionAsync()
+    public async Task<bool> RequestMicrophonePermissionAsync(CancellationToken cancellationToken = default)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _logger.Log("RequestMicrophonePermissionAsync called");
-            return await CheckMicrophonePermissionAsync().ConfigureAwait(false);
+            return await CheckMicrophonePermissionAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Microphone permission request was cancelled");
+            throw;
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -56,12 +70,14 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
         }
     }
 
-    private async Task<bool> CheckWindowsMicrophonePermissionAsync()
+    private async Task<bool> CheckWindowsMicrophonePermissionAsync(CancellationToken cancellationToken)
     {
         return await Task.Run(async () =>
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 _logger.Log("Starting Windows microphone permission check...");
                 var deviceCount = WaveInEvent.DeviceCount;
                 _logger.Log($"Found {deviceCount} audio input devices");
@@ -77,6 +93,8 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
                     var capabilities = WaveInEvent.GetCapabilities(i);
                     _logger.Log($"Device {i}: {capabilities.ProductName}");
                 }
+
+                cancellationToken.ThrowIfCancellationRequested();
 
                 var accessDenied = false;
                 var initializationError = false;
@@ -129,18 +147,31 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
 
                     try
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+
                         waveIn.StartRecording();
 
                         var receivedDataTask = dataReceivedEvent.Task;
-                        var timeoutTask = Task.Delay(3000);
+                        var timeoutTask = Task.Delay(3000, cancellationToken);
                         var completedTask = await Task.WhenAny(receivedDataTask, timeoutTask).ConfigureAwait(false);
 
                         waveIn.StopRecording();
 
                         if (completedTask == timeoutTask && !dataReceived)
                         {
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                _logger.Log("Microphone test cancelled");
+                                cancellationToken.ThrowIfCancellationRequested();
+                            }
                             _logger.Log("Microphone test timed out - no data received within 3 seconds");
                         }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        waveIn.StopRecording();
+                        _logger.Log("Microphone test was cancelled");
+                        throw;
                     }
                     catch (UnauthorizedAccessException ex)
                     {
@@ -153,7 +184,7 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
                         return false;
                     }
 
-                    await Task.Delay(200).ConfigureAwait(false);
+                    await Task.Delay(200, cancellationToken).ConfigureAwait(false);
 
                     if (accessDenied)
                     {
@@ -183,6 +214,11 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
                         return true;
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    _logger.Log("Microphone permission check was cancelled");
+                    throw;
+                }
                 catch (UnauthorizedAccessException ex)
                 {
                     _logger.Log($"Microphone access explicitly denied: {ex.Message}");
@@ -204,6 +240,11 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
                     return false;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                _logger.Log("Windows microphone check was cancelled");
+                throw;
+            }
             catch (UnauthorizedAccessException ex)
             {
                 _logger.Log($"Unauthorized access checking Windows microphone: {ex.Message}");
@@ -219,6 +260,6 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
                 _logger.Log($"Invalid operation checking Windows microphone: {ex.Message}");
                 return false;
             }
-        }).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

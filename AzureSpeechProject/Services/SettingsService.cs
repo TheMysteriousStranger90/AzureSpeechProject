@@ -40,16 +40,17 @@ internal sealed class SettingsService : ISettingsService
         }
 
         _settingsFilePath = Path.Combine(appFolder, "settings.json");
-
         _entropy = Encoding.UTF8.GetBytes("AzureSpeechProject_v1.0_Entropy_Azure");
     }
 
     public string SettingsFilePath => _settingsFilePath;
 
-    public async Task<AppSettings> LoadSettingsAsync()
+    public async Task<AppSettings> LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _logger.Log($"🔐 Loading Azure Speech Service settings from: {_settingsFilePath}");
             _logger.Log($"Settings file exists: {File.Exists(_settingsFilePath)}");
 
@@ -57,13 +58,15 @@ internal sealed class SettingsService : ISettingsService
             {
                 _logger.Log("📋 Settings file not found, creating default settings");
                 var defaultSettings = CreateDefaultSettings();
-                await SaveSettingsAsync(defaultSettings).ConfigureAwait(false);
+                await SaveSettingsAsync(defaultSettings, cancellationToken).ConfigureAwait(false);
                 return defaultSettings;
             }
 
-            var jsonContent = await File.ReadAllTextAsync(_settingsFilePath).ConfigureAwait(false);
+            var jsonContent = await File.ReadAllTextAsync(_settingsFilePath, cancellationToken).ConfigureAwait(false);
             _logger.Log(
                 $"📄 Read settings file content (length: {jsonContent.Length.ToString(CultureInfo.InvariantCulture)} chars)");
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             var settingsData = JsonSerializer.Deserialize<SettingsData>(jsonContent, JsonReadOptions);
 
@@ -123,6 +126,11 @@ internal sealed class SettingsService : ISettingsService
                 $"✅ Final settings loaded - OutputDirectory: '{settings.OutputDirectory}', KeyConfigured: {!string.IsNullOrEmpty(settings.Key)}");
             return settings;
         }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Settings loading was cancelled");
+            throw;
+        }
         catch (JsonException ex)
         {
             _logger.Log($"❌ JSON error loading Azure Speech Service settings: {ex.Message}");
@@ -140,9 +148,10 @@ internal sealed class SettingsService : ISettingsService
         }
     }
 
-    public async Task SaveSettingsAsync(AppSettings settings)
+    public async Task SaveSettingsAsync(AppSettings settings, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        cancellationToken.ThrowIfCancellationRequested();
 
         try
         {
@@ -156,6 +165,8 @@ internal sealed class SettingsService : ISettingsService
                 Directory.CreateDirectory(settingsDirectory);
                 _logger.Log($"📁 Created settings directory: {settingsDirectory}");
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             var settingsData = new SettingsData
             {
@@ -195,11 +206,12 @@ internal sealed class SettingsService : ISettingsService
                 _logger.Log("⚠️ No Azure Speech Service key provided, saving without encryption");
             }
 
-            var json = JsonSerializer.Serialize(settingsData, JsonWriteOptions);
+            cancellationToken.ThrowIfCancellationRequested();
 
+            var json = JsonSerializer.Serialize(settingsData, JsonWriteOptions);
             _logger.Log("📝 Serialized settings data for Azure Speech Service");
 
-            await File.WriteAllTextAsync(_settingsFilePath, json).ConfigureAwait(false);
+            await File.WriteAllTextAsync(_settingsFilePath, json, cancellationToken).ConfigureAwait(false);
             _logger.Log($"✅ Azure Speech Service settings file written to disk: {_settingsFilePath}");
 
             if (File.Exists(_settingsFilePath))
@@ -221,6 +233,11 @@ internal sealed class SettingsService : ISettingsService
 
             _logger.Log("✅ Azure Speech Service settings saved successfully with encryption");
         }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Settings saving was cancelled");
+            throw;
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logger.Log($"❌ Error saving Azure Speech Service settings: {ex.Message}");
@@ -228,14 +245,20 @@ internal sealed class SettingsService : ISettingsService
         }
     }
 
-    public async Task ResetToDefaultsAsync()
+    public async Task ResetToDefaultsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.Log("🔄 Resetting Azure Speech Service settings to defaults");
             var defaultSettings = CreateDefaultSettings();
-            await SaveSettingsAsync(defaultSettings).ConfigureAwait(false);
+            await SaveSettingsAsync(defaultSettings, cancellationToken).ConfigureAwait(false);
             _logger.Log("✅ Azure Speech Service settings reset to defaults");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Settings reset was cancelled");
+            throw;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {

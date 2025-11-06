@@ -32,15 +32,26 @@ public class NetworkStatusService : INetworkStatusService
         }
     }
 
-    public async Task<bool> IsInternetAvailableAsync()
+    public async Task<bool> IsInternetAvailableAsync(CancellationToken cancellationToken = default)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             using var ping = new Ping();
+
             var reply = await ping.SendPingAsync("8.8.8.8", 2000).ConfigureAwait(false);
+
+            cancellationToken.ThrowIfCancellationRequested();
+
             var isAvailable = reply.Status == IPStatus.Success;
             _logger.Log($"Internet connectivity check: {isAvailable} (Status: {reply.Status})");
             return isAvailable;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Internet connectivity check was cancelled");
+            throw;
         }
         catch (PingException ex)
         {
