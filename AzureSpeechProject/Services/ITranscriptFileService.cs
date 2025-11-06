@@ -7,6 +7,6 @@ public interface ITranscriptFileService
     Task<string> SaveTranscriptAsync(
         TranscriptionDocument transcript,
         TranscriptFormat format,
-        CancellationToken cancellationToken = default,
-        string? translatedLanguage = null);
+        string? translatedLanguage = null,
+        CancellationToken cancellationToken = default);
 }

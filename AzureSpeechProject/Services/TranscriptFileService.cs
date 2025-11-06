@@ -6,7 +6,7 @@ using AzureSpeechProject.Models;
 
 namespace AzureSpeechProject.Services;
 
-public sealed class TranscriptFileService : ITranscriptFileService
+internal sealed class TranscriptFileService : ITranscriptFileService
 {
     private readonly ILogger _logger;
     private readonly ISettingsService _settingsService;
@@ -21,8 +21,8 @@ public sealed class TranscriptFileService : ITranscriptFileService
     public async Task<string> SaveTranscriptAsync(
         TranscriptionDocument transcript,
         TranscriptFormat format,
-        CancellationToken cancellationToken = default,
-        string? translatedLanguage = null)
+        string? translatedLanguage = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(transcript);
 
@@ -33,7 +33,7 @@ public sealed class TranscriptFileService : ITranscriptFileService
             _ => FileConstants.TextExtension
         };
 
-        string filePath = await GenerateTranscriptFilePathAsync(extension, translatedLanguage).ConfigureAwait(false);
+        string filePath = await GenerateTranscriptFilePathAsync(extension, translatedLanguage, cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -73,11 +73,14 @@ public sealed class TranscriptFileService : ITranscriptFileService
         }
     }
 
-    private async Task<string> GenerateTranscriptFilePathAsync(string extension, string? languageCode = null)
+    private async Task<string> GenerateTranscriptFilePathAsync(
+        string extension,
+        string? languageCode = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var settings = await _settingsService.LoadSettingsAsync().ConfigureAwait(false);
+            var settings = await _settingsService.LoadSettingsAsync(cancellationToken).ConfigureAwait(false);
             var outputDirectory = settings.OutputDirectory;
 
             if (string.IsNullOrWhiteSpace(outputDirectory))

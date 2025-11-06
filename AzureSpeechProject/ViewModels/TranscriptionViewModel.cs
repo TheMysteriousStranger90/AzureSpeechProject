@@ -91,7 +91,7 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
 
         this.WhenActivated(disposables =>
         {
-            Observable.FromEventPattern<EventHandler<TranscriptionSegment>, TranscriptionSegment>(
+            Observable.FromEventPattern<EventHandler<TranscriptionSegmentEventArgs>, TranscriptionSegmentEventArgs>(
                     h => _transcriptionService.OnTranscriptionUpdated += h,
                     h => _transcriptionService.OnTranscriptionUpdated -= h)
                 .Select(e => e.EventArgs).ObserveOn(RxApp.MainThreadScheduler)
@@ -99,7 +99,7 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
                     ex => _logger.Log($"Error in transcription subscription: {ex.Message}"))
                 .DisposeWith(disposables);
 
-            Observable.FromEventPattern<EventHandler<TranslationResult>, TranslationResult>(
+            Observable.FromEventPattern<EventHandler<TranslationResultEventArgs>, TranslationResultEventArgs>(
                     h => _translationService.OnTranslationUpdated += h,
                     h => _translationService.OnTranslationUpdated -= h)
                 .Select(e => e.EventArgs).ObserveOn(RxApp.MainThreadScheduler)
@@ -115,16 +115,16 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
         });
     }
 
-    private void HandleTranscriptionUpdated(TranscriptionSegment segment)
+    private void HandleTranscriptionUpdated(TranscriptionSegmentEventArgs e)
     {
-        _document.Segments.Add(segment);
-        CurrentTranscript += $"[{segment.Timestamp:HH:mm:ss}] {segment.Text}{Environment.NewLine}";
+        _document.Segments.Add(e.Segment);
+        CurrentTranscript += $"[{e.Segment.Timestamp:HH:mm:ss}] {e.Segment.Text}{Environment.NewLine}";
         Status = $"Transcribing... (Segments: {_document.Segments.Count})";
     }
 
-    private void HandleTranslationUpdated(TranslationResult result)
+    private void HandleTranslationUpdated(TranslationResultEventArgs e)
     {
-        CurrentTranslation += $"[{result.Timestamp:HH:mm:ss}] {result.TranslatedText}{Environment.NewLine}";
+        CurrentTranslation += $"[{e.Result.Timestamp:HH:mm:ss}] {e.Result.TranslatedText}{Environment.NewLine}";
     }
 
     private async Task StartRecordingAsync()
@@ -217,7 +217,7 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
                 await _translationService.StopTranslationAsync(stopCts.Token).ConfigureAwait(false);
             }
 
-            _document = _transcriptionService.GetTranscriptionDocument();
+            _document = _transcriptionService.TranscriptionDocument;
             IsRecording = false;
 
             if (_document.Segments.Count > 0)
@@ -261,6 +261,7 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
             var filePath = await _fileService.SaveTranscriptAsync(
                 _document,
                 SelectedOutputFormat,
+                null,
                 saveCts.Token).ConfigureAwait(false);
 
             Status = $"✅ Transcript saved to: {filePath}";
@@ -291,8 +292,8 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
                 await _fileService.SaveTranscriptAsync(
                     translationDocument,
                     SelectedOutputFormat,
-                    saveCts.Token,
-                    SelectedTargetLanguage).ConfigureAwait(false);
+                    SelectedTargetLanguage,
+                    saveCts.Token).ConfigureAwait(false);
 
                 Status = $"✅ Transcript and translation saved to: {Path.GetDirectoryName(filePath)}";
             }

@@ -1,4 +1,5 @@
 ﻿using AzureSpeechProject.Logger;
+using AzureSpeechProject.Models;
 using NAudio.Wave;
 
 namespace AzureSpeechProject.Services;
@@ -128,9 +129,9 @@ public class AudioCaptureService : IDisposable
                 _logger.Log($"Audio data captured: {e.BytesRecorded} bytes");
             }
         }
-        catch (Exception ex)
+        catch (ObjectDisposedException)
         {
-            _logger.Log($"Error processing audio data: {ex.Message}");
+            _logger.Log("Audio processing stopped due to disposal");
         }
     }
 
@@ -179,22 +180,12 @@ public class AudioCaptureService : IDisposable
                 _captureLock?.Dispose();
                 _logger.Log("AudioCaptureService disposed");
             }
-            catch (Exception ex)
+            catch (ObjectDisposedException)
             {
-                _logger.Log($"Error during AudioCaptureService disposal: {ex.Message}");
+                // Already disposed
             }
 
             _disposed = true;
-        }
-    }
-
-    public class AudioCapturedEventArgs : EventArgs
-    {
-        public byte[] AudioData { get; }
-
-        public AudioCapturedEventArgs(byte[] audioData)
-        {
-            AudioData = audioData ?? throw new ArgumentNullException(nameof(audioData));
         }
     }
 }

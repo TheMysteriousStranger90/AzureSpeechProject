@@ -20,7 +20,7 @@ public sealed class TranscriptionService : IDisposable
     private EventHandler<SessionEventArgs>? _sessionStartedHandler;
     private EventHandler<SessionEventArgs>? _sessionStoppedHandler;
 
-    public event EventHandler<TranscriptionSegment>? OnTranscriptionUpdated;
+    public event EventHandler<TranscriptionSegmentEventArgs>? OnTranscriptionUpdated;
 
     public TranscriptionService(
         ISettingsService settingsService,
@@ -33,7 +33,8 @@ public sealed class TranscriptionService : IDisposable
         _logger.Log("TranscriptionService initialized");
     }
 
-    public async Task StartTranscriptionAsync(TranscriptionOptions options, CancellationToken cancellationToken = default)
+    public async Task StartTranscriptionAsync(TranscriptionOptions options,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
         cancellationToken.ThrowIfCancellationRequested();
@@ -63,7 +64,8 @@ public sealed class TranscriptionService : IDisposable
             speechConfig.SetProperty(PropertyId.SpeechServiceResponse_PostProcessingOption, "TrueText");
             speechConfig.SetProfanity(options.EnableProfanityFilter ? ProfanityOption.Masked : ProfanityOption.Raw);
 
-            _logger.Log($"Speech config - Language: {speechConfig.SpeechRecognitionLanguage}, Region: {settings.Region}");
+            _logger.Log(
+                $"Speech config - Language: {speechConfig.SpeechRecognitionLanguage}, Region: {settings.Region}");
 
             if (options.EnableWordLevelTimestamps)
             {
@@ -115,11 +117,11 @@ public sealed class TranscriptionService : IDisposable
         }
     }
 
-    private void OnAudioCaptured(object? sender, AudioCaptureService.AudioCapturedEventArgs e)
+    private void OnAudioCaptured(object? sender, AudioCapturedEventArgs e)
     {
         if (_isTranscribing && _audioInputStream != null && _transcriptionCts?.Token.IsCancellationRequested != true)
         {
-            _audioInputStream.Write(e.AudioData);
+            _audioInputStream.Write(e.GetAudioDataArray());
         }
     }
 
@@ -140,7 +142,7 @@ public sealed class TranscriptionService : IDisposable
                 Duration = e.Result.Duration,
             };
             _transcriptionDocument.Segments.Add(segment);
-            OnTranscriptionUpdated?.Invoke(this, segment);
+            OnTranscriptionUpdated?.Invoke(this, new TranscriptionSegmentEventArgs(segment));
             _logger.Log($"Transcribed: {segment.Text}");
         }
         else if (e.Result.Reason == ResultReason.NoMatch)
@@ -181,8 +183,10 @@ public sealed class TranscriptionService : IDisposable
 
         try
         {
-            _transcriptionCts?.CancelAsync();
-            await CleanupTranscriptionAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await (_transcriptionCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
+            await CleanupTranscriptionAsync().ConfigureAwait(false);
 
             _transcriptionDocument.EndTime = DateTime.Now;
             _logger.Log("Transcription service stopped.");
@@ -194,7 +198,7 @@ public sealed class TranscriptionService : IDisposable
         }
     }
 
-    private async Task CleanupTranscriptionAsync(CancellationToken cancellationToken = default)
+    private async Task CleanupTranscriptionAsync()
     {
         _audioCapture.AudioCaptured -= OnAudioCaptured;
 
@@ -203,6 +207,10 @@ public sealed class TranscriptionService : IDisposable
             try
             {
                 await _recognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed
             }
             catch (Exception ex)
             {
@@ -230,7 +238,7 @@ public sealed class TranscriptionService : IDisposable
         _isTranscribing = false;
     }
 
-    public TranscriptionDocument GetTranscriptionDocument() => _transcriptionDocument;
+    public TranscriptionDocument TranscriptionDocument => _transcriptionDocument;
 
     public void Dispose()
     {

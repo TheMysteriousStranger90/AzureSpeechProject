@@ -16,7 +16,7 @@ public sealed class TranslationService : IDisposable
     private bool _isTranslating;
     private CancellationTokenSource? _translationCts;
 
-    public event EventHandler<TranslationResult>? OnTranslationUpdated;
+    public event EventHandler<TranslationResultEventArgs>? OnTranslationUpdated;
 
     public TranslationService(ILogger logger, ISettingsService settingsService, AudioCaptureService audioCaptureService)
     {
@@ -70,17 +70,18 @@ public sealed class TranslationService : IDisposable
                 if (_translationCts?.Token.IsCancellationRequested == true)
                     return;
 
-                if (e.Result.Reason == ResultReason.TranslatedSpeech && e.Result.Translations.ContainsKey(targetLanguage))
+                if (e.Result.Reason == ResultReason.TranslatedSpeech &&
+                    e.Result.Translations.ContainsKey(targetLanguage))
                 {
                     var translatedText = e.Result.Translations[targetLanguage];
                     _logger.Log($"Translated ({targetLanguage}): {translatedText}");
-                    OnTranslationUpdated?.Invoke(this, new TranslationResult
+                    OnTranslationUpdated?.Invoke(this, new TranslationResultEventArgs(new TranslationResult
                     {
                         OriginalText = e.Result.Text,
                         TranslatedText = translatedText,
                         TargetLanguage = targetLanguage,
                         Timestamp = DateTime.Now
-                    });
+                    }));
                 }
             };
 
@@ -111,11 +112,11 @@ public sealed class TranslationService : IDisposable
         }
     }
 
-    private void OnAudioCaptured(object? sender, AudioCaptureService.AudioCapturedEventArgs e)
+    private void OnAudioCaptured(object? sender, AudioCapturedEventArgs e)
     {
         if (_isTranslating && _audioStream != null && _translationCts?.Token.IsCancellationRequested != true)
         {
-            _audioStream.Write(e.AudioData, e.AudioData.Length);
+            _audioStream.Write(e.GetAudioDataArray(), e.AudioData.Count);
         }
     }
 
@@ -127,8 +128,10 @@ public sealed class TranslationService : IDisposable
 
         try
         {
-            _translationCts?.CancelAsync();
-            await CleanupTranslationAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await (_translationCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
+            await CleanupTranslationAsync().ConfigureAwait(false);
 
             _logger.Log("Translation service stopped.");
         }
@@ -139,7 +142,7 @@ public sealed class TranslationService : IDisposable
         }
     }
 
-    private async Task CleanupTranslationAsync(CancellationToken cancellationToken = default)
+    private async Task CleanupTranslationAsync()
     {
         _audioCaptureService.AudioCaptured -= OnAudioCaptured;
 
@@ -148,6 +151,10 @@ public sealed class TranslationService : IDisposable
             try
             {
                 await _recognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed
             }
             catch (Exception ex)
             {
