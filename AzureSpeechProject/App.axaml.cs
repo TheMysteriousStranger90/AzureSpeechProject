@@ -50,7 +50,7 @@ internal sealed class App : Application
     {
         try
         {
-            _logger?.Log("Framework initialization completed, creating main window...");
+            _logger?.Log("Framework initialization completed");
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
@@ -59,16 +59,18 @@ internal sealed class App : Application
                     try
                     {
                         var mainViewModel = _serviceProvider.GetRequiredService<MainWindowViewModel>();
+
                         desktop.MainWindow = new MainWindow
                         {
                             DataContext = mainViewModel
                         };
+
                         _logger?.Log("Main window created with ViewModel successfully");
                     }
                     catch (InvalidOperationException ex)
                     {
                         _logger?.Log($"Error creating main window with ViewModel: {ex.Message}");
-                        Console.WriteLine($"Error creating main window with ViewModel: {ex}");
+                        Console.WriteLine($"Error creating main window: {ex}");
 
                         desktop.MainWindow = new MainWindow();
                         _logger?.Log("Created fallback main window without ViewModel");
@@ -79,6 +81,11 @@ internal sealed class App : Application
                     desktop.MainWindow = new MainWindow();
                     _logger?.Log("Created main window without ServiceProvider (Design mode)");
                 }
+
+                desktop.ShutdownRequested += (s, e) =>
+                {
+                    _logger?.Log("Application shutdown requested");
+                };
             }
 
             base.OnFrameworkInitializationCompleted();
@@ -87,7 +94,7 @@ internal sealed class App : Application
         catch (Exception ex)
         {
             _logger?.Log($"Fatal error during framework initialization: {ex.Message}");
-            Console.WriteLine($"Fatal error during framework initialization: {ex}");
+            Console.WriteLine($"Fatal error: {ex}");
             throw;
         }
     }

@@ -1,6 +1,4 @@
-﻿using System.Threading.Tasks;
-
-namespace AzureSpeechProject.Services;
+﻿namespace AzureSpeechProject.Services;
 
 public interface INetworkStatusService
 {
