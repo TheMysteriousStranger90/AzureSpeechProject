@@ -94,7 +94,9 @@ public sealed class TranscriptionService : IDisposable
             _sessionStoppedHandler = (s, e) => _logger.Log($"Transcription Session stopped: {e.SessionId}");
             _recognizer.SessionStopped += _sessionStoppedHandler;
 
+            _logger.Log("📝 Subscribing to AudioCaptured event...");
             _audioCapture.AudioCaptured += OnAudioCaptured;
+            _logger.Log("✅ Subscribed to AudioCaptured event");
 
             _transcriptionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -121,7 +123,16 @@ public sealed class TranscriptionService : IDisposable
     {
         if (_isTranscribing && _audioInputStream != null && _transcriptionCts?.Token.IsCancellationRequested != true)
         {
-            _audioInputStream.Write(e.GetAudioDataArray());
+            try
+            {
+                var audioData = e.GetAudioDataArray();
+                _logger.Log($"✅ OnAudioCaptured called - writing {audioData.Length} bytes to recognizer");
+                _audioInputStream.Write(audioData);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"❌ Error writing audio data: {ex.Message}");
+            }
         }
     }
 
@@ -186,6 +197,20 @@ public sealed class TranscriptionService : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
 
             await (_transcriptionCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
+
+            if (_audioInputStream != null)
+            {
+                try
+                {
+                    _logger.Log("Closing audio input stream...");
+                    _audioInputStream.Close();
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"Error closing audio stream: {ex.Message}");
+                }
+            }
+
             await CleanupTranscriptionAsync().ConfigureAwait(false);
 
             _transcriptionDocument.EndTime = DateTime.Now;
@@ -206,11 +231,13 @@ public sealed class TranscriptionService : IDisposable
         {
             try
             {
+                _logger.Log("Stopping continuous recognition...");
                 await _recognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
+                _logger.Log("Recognition stopped successfully");
             }
             catch (ObjectDisposedException)
             {
-                // Already disposed
+                _logger.Log("Recognizer already disposed");
             }
             catch (Exception ex)
             {
@@ -229,7 +256,15 @@ public sealed class TranscriptionService : IDisposable
 
         if (_audioInputStream != null)
         {
-            _audioInputStream.Close();
+            try
+            {
+                _audioInputStream.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Error disposing audio stream: {ex.Message}");
+            }
+
             _audioInputStream = null;
         }
 

@@ -201,6 +201,7 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
         if (!IsRecording) return;
 
         _logger.Log("Stopping recording process...");
+
         Status = "Stopping...";
 
         using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -210,6 +211,9 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
             await (_recordingCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
 
             await _audioCaptureService.StopCapturingAsync(stopCts.Token).ConfigureAwait(false);
+
+            await Task.Delay(500, stopCts.Token).ConfigureAwait(false);
+
             await _transcriptionService.StopTranscriptionAsync(stopCts.Token).ConfigureAwait(false);
 
             if (EnableTranslation)
@@ -218,16 +222,22 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
             }
 
             _document = _transcriptionService.TranscriptionDocument;
-            IsRecording = false;
 
-            if (_document.Segments.Count > 0)
+            RxApp.MainThreadScheduler.Schedule(Unit.Default, (scheduler, state) =>
             {
-                Status = $"✅ Recording stopped. {_document.Segments.Count} segments captured.";
-            }
-            else
-            {
-                Status = "⚠️ Recording stopped. No audio was captured.";
-            }
+                IsRecording = false;
+
+                if (_document.Segments.Count > 0)
+                {
+                    Status = $"✅ Recording stopped. {_document.Segments.Count} segments captured.";
+                }
+                else
+                {
+                    Status = "⚠️ Recording stopped. No audio was captured.";
+                }
+
+                return Disposable.Empty;
+            });
 
             _logger.Log("All services stopped successfully.");
         }
@@ -235,13 +245,23 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
         {
             Status = "⚠️ Stop operation timed out or was cancelled";
             _logger.Log("Stop recording was cancelled or timed out");
-            IsRecording = false;
+
+            RxApp.MainThreadScheduler.Schedule(Unit.Default, (scheduler, state) =>
+            {
+                IsRecording = false;
+                return Disposable.Empty;
+            });
         }
         catch (Exception ex)
         {
             Status = $"❌ Error stopping recording: {ex.Message}";
             _logger.Log($"Error stopping recording: {ex.Message}");
-            IsRecording = false;
+
+            RxApp.MainThreadScheduler.Schedule(Unit.Default, (scheduler, state) =>
+            {
+                IsRecording = false;
+                return Disposable.Empty;
+            });
         }
         finally
         {

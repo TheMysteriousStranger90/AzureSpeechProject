@@ -89,7 +89,9 @@ public sealed class TranslationService : IDisposable
             _recognizer.SessionStarted += (s, e) => _logger.Log($"Translation Session started: {e.SessionId}");
             _recognizer.SessionStopped += (s, e) => _logger.Log($"Translation Session stopped: {e.SessionId}");
 
+            _logger.Log("📝 Subscribing translation to AudioCaptured event...");
             _audioCaptureService.AudioCaptured += OnAudioCaptured;
+            _logger.Log("✅ Translation subscribed to AudioCaptured event");
 
             _translationCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -116,7 +118,15 @@ public sealed class TranslationService : IDisposable
     {
         if (_isTranslating && _audioStream != null && _translationCts?.Token.IsCancellationRequested != true)
         {
-            _audioStream.Write(e.GetAudioDataArray(), e.AudioData.Count);
+            try
+            {
+                var audioData = e.GetAudioDataArray();
+                _audioStream.Write(audioData);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Error writing audio data to translation: {ex.Message}");
+            }
         }
     }
 
@@ -131,6 +141,20 @@ public sealed class TranslationService : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
 
             await (_translationCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
+
+            if (_audioStream != null)
+            {
+                try
+                {
+                    _logger.Log("Closing translation audio stream...");
+                    _audioStream.Close();
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"Error closing translation audio stream: {ex.Message}");
+                }
+            }
+
             await CleanupTranslationAsync().ConfigureAwait(false);
 
             _logger.Log("Translation service stopped.");
@@ -150,11 +174,13 @@ public sealed class TranslationService : IDisposable
         {
             try
             {
+                _logger.Log("Stopping translation recognition...");
                 await _recognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
+                _logger.Log("Translation recognition stopped successfully");
             }
             catch (ObjectDisposedException)
             {
-                // Already disposed
+                _logger.Log("Translation recognizer already disposed");
             }
             catch (Exception ex)
             {
@@ -167,7 +193,15 @@ public sealed class TranslationService : IDisposable
 
         if (_audioStream != null)
         {
-            _audioStream.Close();
+            try
+            {
+                _audioStream.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Error disposing translation audio stream: {ex.Message}");
+            }
+
             _audioStream = null;
         }
 

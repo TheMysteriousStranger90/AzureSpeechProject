@@ -122,6 +122,10 @@ public class AudioCaptureService : IDisposable
             var audioData = new byte[e.BytesRecorded];
             Array.Copy(e.Buffer, audioData, e.BytesRecorded);
 
+            var subscriberCount = AudioCaptured?.GetInvocationList().Length ?? 0;
+            _logger.Log(
+                $"📢 Invoking AudioCaptured event with {e.BytesRecorded} bytes, {subscriberCount} subscriber(s)");
+
             AudioCaptured?.Invoke(this, new AudioCapturedEventArgs(audioData));
 
             if (DateTime.Now.Millisecond % 1000 < 50)
@@ -132,6 +136,10 @@ public class AudioCaptureService : IDisposable
         catch (ObjectDisposedException)
         {
             _logger.Log("Audio processing stopped due to disposal");
+        }
+        catch (Exception ex)
+        {
+            _logger.Log($"❌ Error in WaveIn_DataAvailable: {ex.Message}");
         }
     }
 

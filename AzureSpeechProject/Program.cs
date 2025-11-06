@@ -41,19 +41,19 @@ internal static class Program
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        //Services - Singleton
+        // Services - Singleton
         services.AddSingleton<ILogger, FileLogger>();
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<INetworkStatusService, NetworkStatusService>();
         services.AddSingleton<IMicrophonePermissionService, MicrophonePermissionService>();
 
-        //Services - Transient
+        // Services - Transient
         services.AddTransient<ITranscriptFileService, TranscriptFileService>();
 
-        //Services - Transient
-        services.AddTransient<AudioCaptureService>();
-        services.AddTransient<TranscriptionService>();
-        services.AddTransient<TranslationService>();
+        // Audio Services
+        services.AddSingleton<AudioCaptureService>();
+        services.AddSingleton<TranscriptionService>();
+        services.AddSingleton<TranslationService>();
 
         // ViewModels
         services.AddTransient<TranscriptionViewModel>();
