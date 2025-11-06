@@ -10,11 +10,12 @@ using ReactiveUI.Fody.Helpers;
 
 namespace AzureSpeechProject.ViewModels;
 
-public class SettingsViewModel : ReactiveObject, IActivatableViewModel
+public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, IDisposable
 {
     private readonly ILogger _logger;
     private readonly ISettingsService _settingsService;
     private CancellationTokenSource? _operationCts;
+    private bool _disposed;
 
     public ViewModelActivator Activator { get; } = new ViewModelActivator();
 
@@ -145,7 +146,7 @@ public class SettingsViewModel : ReactiveObject, IActivatableViewModel
 
     private async Task SaveSettingsAsync()
     {
-        var saveCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var saveCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
         try
         {
@@ -179,15 +180,11 @@ public class SettingsViewModel : ReactiveObject, IActivatableViewModel
             _logger.Log($"Stack trace: {ex.StackTrace}");
             throw;
         }
-        finally
-        {
-            saveCts.Dispose();
-        }
     }
 
     private async Task ResetSettingsAsync()
     {
-        var resetCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var resetCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
         try
         {
@@ -204,10 +201,6 @@ public class SettingsViewModel : ReactiveObject, IActivatableViewModel
         {
             _logger.Log($"Error resetting settings from ViewModel: {ex.Message}");
             throw;
-        }
-        finally
-        {
-            resetCts.Dispose();
         }
     }
 
@@ -280,5 +273,18 @@ public class SettingsViewModel : ReactiveObject, IActivatableViewModel
             }
             throw;
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _operationCts?.Cancel();
+        _operationCts?.Dispose();
+        _operationCts = null;
+
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

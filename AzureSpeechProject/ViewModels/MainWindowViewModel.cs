@@ -7,12 +7,13 @@ using ReactiveUI.Fody.Helpers;
 
 namespace AzureSpeechProject.ViewModels;
 
-public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
+public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDisposable
 {
     private readonly ILogger _logger;
     private readonly INetworkStatusService _networkStatusService;
     private readonly IMicrophonePermissionService _microphonePermissionService;
     private CancellationTokenSource? _initializationCts;
+    private bool _disposed;
 
     public ViewModelActivator Activator { get; } = new ViewModelActivator();
 
@@ -30,10 +31,12 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
         IMicrophonePermissionService microphonePermissionService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        TranscriptionViewModel = transcriptionViewModel ?? throw new ArgumentNullException(nameof(transcriptionViewModel));
+        TranscriptionViewModel =
+            transcriptionViewModel ?? throw new ArgumentNullException(nameof(transcriptionViewModel));
         SettingsViewModel = settingsViewModel ?? throw new ArgumentNullException(nameof(settingsViewModel));
         _networkStatusService = networkStatusService ?? throw new ArgumentNullException(nameof(networkStatusService));
-        _microphonePermissionService = microphonePermissionService ?? throw new ArgumentNullException(nameof(microphonePermissionService));
+        _microphonePermissionService = microphonePermissionService ??
+                                       throw new ArgumentNullException(nameof(microphonePermissionService));
 
         try
         {
@@ -257,7 +260,8 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
             }
 
             _logger.Log("Checking internet connectivity...");
-            var isAvailable = await _networkStatusService.IsInternetAvailableAsync(cancellationToken).ConfigureAwait(false);
+            var isAvailable = await _networkStatusService.IsInternetAvailableAsync(cancellationToken)
+                .ConfigureAwait(false);
             _logger.Log($"Internet connection available: {isAvailable}");
             return isAvailable;
         }
@@ -278,7 +282,8 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
         try
         {
             _logger.Log("Checking microphone access...");
-            var hasAccess = await _microphonePermissionService.CheckMicrophonePermissionAsync(cancellationToken).ConfigureAwait(false);
+            var hasAccess = await _microphonePermissionService.CheckMicrophonePermissionAsync(cancellationToken)
+                .ConfigureAwait(false);
             _logger.Log($"Microphone access: {hasAccess}");
             return hasAccess;
         }
@@ -292,5 +297,18 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
             _logger.Log($"Error checking microphone access: {ex.Message}");
             return false;
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _initializationCts?.Cancel();
+        _initializationCts?.Dispose();
+        _initializationCts = null;
+
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

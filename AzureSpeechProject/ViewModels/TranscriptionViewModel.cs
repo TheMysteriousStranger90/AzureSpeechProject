@@ -10,7 +10,7 @@ using ReactiveUI.Fody.Helpers;
 
 namespace AzureSpeechProject.ViewModels;
 
-public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
+public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewModel, IDisposable
 {
     private readonly ILogger _logger;
     private readonly TranscriptionService _transcriptionService;
@@ -19,6 +19,7 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
     private readonly AudioCaptureService _audioCaptureService;
     private readonly ISettingsService _settingsService;
     private CancellationTokenSource? _recordingCts;
+    private bool _disposed;
 
     [Reactive] public string CurrentTranscript { get; private set; } = string.Empty;
     [Reactive] public string CurrentTranslation { get; private set; } = string.Empty;
@@ -131,7 +132,7 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
         _logger.Log("Starting recording process...");
         ClearTranscript();
 
-        _recordingCts?.CancelAsync();
+        await (_recordingCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
         _recordingCts?.Dispose();
         _recordingCts = new CancellationTokenSource();
 
@@ -202,11 +203,11 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
         _logger.Log("Stopping recording process...");
         Status = "Stopping...";
 
-        var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
         try
         {
-            _recordingCts?.CancelAsync();
+            await (_recordingCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
 
             await _audioCaptureService.StopCapturingAsync(stopCts.Token).ConfigureAwait(false);
             await _transcriptionService.StopTranscriptionAsync(stopCts.Token).ConfigureAwait(false);
@@ -244,7 +245,6 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
         }
         finally
         {
-            stopCts.Dispose();
             _recordingCts?.Dispose();
             _recordingCts = null;
         }
@@ -254,7 +254,7 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
     {
         Status = "Saving transcript...";
 
-        var saveCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var saveCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
         try
         {
@@ -307,10 +307,6 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
             Status = $"❌ Error saving transcript: {ex.Message}";
             _logger.Log($"Error saving transcript: {ex.Message}");
         }
-        finally
-        {
-            saveCts.Dispose();
-        }
     }
 
     private static bool TryParseTranslationLine(string line, out DateTime timestamp, out string text)
@@ -349,5 +345,19 @@ public class TranscriptionViewModel : ReactiveObject, IActivatableViewModel
         CurrentTranslation = string.Empty;
         _document = new TranscriptionDocument();
         Status = "Ready to record";
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _canSave?.Dispose();
+        _canClear?.Dispose();
+        _recordingCts?.Cancel();
+        _recordingCts?.Dispose();
+
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

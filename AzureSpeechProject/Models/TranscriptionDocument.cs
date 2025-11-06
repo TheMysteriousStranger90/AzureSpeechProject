@@ -1,11 +1,11 @@
-﻿using System.Globalization;
+﻿using System.Collections.ObjectModel;
+using System.Globalization;
 
 namespace AzureSpeechProject.Models;
 
 public class TranscriptionDocument
 {
-    public List<TranscriptionSegment> Segments { get; set; } = new();
-    public string Language { get; set; } = "en-US";
+    public Collection<TranscriptionSegment> Segments { get; } = [];    public string Language { get; set; } = "en-US";
     public DateTime StartTime { get; set; } = DateTime.Now;
     public DateTime? EndTime { get; set; }
 
