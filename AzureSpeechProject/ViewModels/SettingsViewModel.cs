@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Reactive;
+﻿using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
-using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
@@ -14,7 +10,7 @@ using ReactiveUI.Fody.Helpers;
 
 namespace AzureSpeechProject.ViewModels;
 
-public class SettingsViewModel : ViewModelBase, IActivatableViewModel
+public class SettingsViewModel : ReactiveObject, IActivatableViewModel
 {
     private readonly ILogger _logger;
     private readonly ISettingsService _settingsService;
@@ -27,19 +23,19 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
 
     [Reactive] public string SelectedSpeechLanguage { get; set; } = "en-US";
 
-    public List<string> AvailableSpeechLanguages { get; } = new List<string>
+    public IReadOnlyList<string> AvailableSpeechLanguages { get; } = new List<string>
     {
         "en-US",
     };
 
     [Reactive] public int SelectedSampleRate { get; set; } = 16000;
-    public List<int> SampleRates { get; } = new List<int> { 8000, 16000, 44100, 48000 };
+    public IReadOnlyList<int> SampleRates { get; } = new List<int> { 8000, 16000, 44100, 48000 };
 
     [Reactive] public int SelectedBitsPerSample { get; set; } = 16;
-    public List<int> BitsPerSample { get; } = new List<int> { 8, 16, 24, 32 };
+    public IReadOnlyList<int> BitsPerSample { get; } = new List<int> { 8, 16, 24, 32 };
 
     [Reactive] public int SelectedChannels { get; set; } = 1;
-    public List<int> Channels { get; } = new List<int> { 1, 2 };
+    public IReadOnlyList<int> Channels { get; } = new List<int> { 1, 2 };
 
     [Reactive] public string OutputDirectory { get; set; } = string.Empty;
 
@@ -87,7 +83,7 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
     {
         try
         {
-            var settings = await _settingsService.LoadSettingsAsync();
+            var settings = await _settingsService.LoadSettingsAsync().ConfigureAwait(false);
 
             _logger.Log($"Loaded from service - OutputDirectory: '{settings.OutputDirectory}'");
             _logger.Log($"Current ViewModel OutputDirectory before update: '{OutputDirectory}'");
@@ -130,6 +126,7 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
                     "Transcripts");
                 _logger.Log($"📁 Set fallback OutputDirectory: '{OutputDirectory}'");
             }
+            throw;
         }
     }
 
@@ -153,13 +150,14 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
             };
 
             _logger.Log("Created AppSettings object, calling service SaveSettingsAsync");
-            await _settingsService.SaveSettingsAsync(settings);
+            await _settingsService.SaveSettingsAsync(settings).ConfigureAwait(false);
             _logger.Log("Settings saved from ViewModel successfully");
         }
         catch (Exception ex)
         {
             _logger.Log($"Error saving settings from ViewModel: {ex.Message}");
             _logger.Log($"Stack trace: {ex.StackTrace}");
+            throw;
         }
     }
 
@@ -167,13 +165,14 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
     {
         try
         {
-            await _settingsService.ResetToDefaultsAsync();
-            await LoadSettingsAsync();
+            await _settingsService.ResetToDefaultsAsync().ConfigureAwait(false);
+            await LoadSettingsAsync().ConfigureAwait(false);
             _logger.Log("Settings reset from ViewModel");
         }
         catch (Exception ex)
         {
             _logger.Log($"Error resetting settings from ViewModel: {ex.Message}");
+            throw;
         }
     }
 
@@ -199,10 +198,10 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
                 {
                     Title = "Select Output Directory",
                     SuggestedStartLocation = await mainWindow.MainWindow.StorageProvider
-                        .TryGetFolderFromPathAsync(initialDirectory)
+                        .TryGetFolderFromPathAsync(initialDirectory).ConfigureAwait(false)
                 };
 
-                var result = await mainWindow.MainWindow.StorageProvider.OpenFolderPickerAsync(options);
+                var result = await mainWindow.MainWindow.StorageProvider.OpenFolderPickerAsync(options).ConfigureAwait(false);
 
                 if (result.Count > 0)
                 {
@@ -216,7 +215,7 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
                         OutputDirectory = newPath;
                         _logger.Log($"OutputDirectory property updated to: {OutputDirectory}");
 
-                        await SaveSettingsAsync();
+                        await SaveSettingsAsync().ConfigureAwait(false);
                         _logger.Log("Settings automatically saved after directory selection");
                     }
                     else
@@ -244,6 +243,7 @@ public class SettingsViewModel : ViewModelBase, IActivatableViewModel
 
                 _logger.Log($"Set default output directory: {OutputDirectory}");
             }
+            throw;
         }
     }
 }

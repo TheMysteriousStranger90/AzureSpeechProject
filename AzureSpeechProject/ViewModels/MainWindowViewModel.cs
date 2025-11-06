@@ -1,15 +1,13 @@
-﻿using System;
-using System.Reactive.Disposables;
+﻿using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Services;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
-using System.Threading.Tasks;
 
 namespace AzureSpeechProject.ViewModels;
 
-public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
+public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel
 {
     private readonly ILogger _logger;
     private readonly INetworkStatusService _networkStatusService;
@@ -30,17 +28,14 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
         INetworkStatusService networkStatusService,
         IMicrophonePermissionService microphonePermissionService)
     {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        TranscriptionViewModel = transcriptionViewModel ?? throw new ArgumentNullException(nameof(transcriptionViewModel));
+        SettingsViewModel = settingsViewModel ?? throw new ArgumentNullException(nameof(settingsViewModel));
+        _networkStatusService = networkStatusService ?? throw new ArgumentNullException(nameof(networkStatusService));
+        _microphonePermissionService = microphonePermissionService ?? throw new ArgumentNullException(nameof(microphonePermissionService));
+
         try
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            TranscriptionViewModel =
-                transcriptionViewModel ?? throw new ArgumentNullException(nameof(transcriptionViewModel));
-            SettingsViewModel = settingsViewModel ?? throw new ArgumentNullException(nameof(settingsViewModel));
-            _networkStatusService =
-                networkStatusService ?? throw new ArgumentNullException(nameof(networkStatusService));
-            _microphonePermissionService =
-                microphonePermissionService ?? throw new ArgumentNullException(nameof(microphonePermissionService));
-
             this.WhenActivated(disposables =>
             {
                 try
@@ -89,11 +84,11 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                     Observable.FromAsync(async () =>
                         {
                             StatusMessage = "Loading settings...";
-                            await SettingsViewModel.LoadSettingsAsync();
+                            await SettingsViewModel.LoadSettingsAsync().ConfigureAwait(false);
                             _logger.Log("Settings preloaded in MainWindowViewModel");
                             StatusMessage = "Settings loaded successfully";
 
-                            await Task.Delay(1000);
+                            await Task.Delay(1000).ConfigureAwait(false);
 
                             UpdateStatusMessage();
                         })
@@ -164,10 +159,15 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                 }
             });
         }
+        catch (ArgumentNullException ex)
+        {
+            _logger.Log($"Argument null in MainWindowViewModel constructor: {ex}");
+            StatusMessage = "❌ Critical initialization error";
+        }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error in MainWindowViewModel constructor: {ex}");
-            throw;
+            _logger.Log($"Error in MainWindowViewModel constructor: {ex}");
+            StatusMessage = "❌ Critical initialization error";
         }
     }
 
@@ -216,7 +216,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
             }
 
             _logger.Log("Checking internet connectivity...");
-            var isAvailable = await _networkStatusService.IsInternetAvailableAsync();
+            var isAvailable = await _networkStatusService.IsInternetAvailableAsync().ConfigureAwait(false);
             _logger.Log($"Internet connection available: {isAvailable}");
             return isAvailable;
         }
@@ -232,7 +232,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
         try
         {
             _logger.Log("Checking microphone access...");
-            var hasAccess = await _microphonePermissionService.CheckMicrophonePermissionAsync();
+            var hasAccess = await _microphonePermissionService.CheckMicrophonePermissionAsync().ConfigureAwait(false);
             _logger.Log($"Microphone access: {hasAccess}");
             return hasAccess;
         }

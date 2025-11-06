@@ -1,22 +1,23 @@
-﻿using System;
-using System.Threading.Tasks;
-using AzureSpeechProject.Logger;
+﻿using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 
 namespace AzureSpeechProject.Services;
 
-public class TranscriptionService : IDisposable
+public sealed class TranscriptionService : IDisposable
 {
     private readonly ISettingsService _settingsService;
     private readonly AudioCaptureService _audioCapture;
     private readonly ILogger _logger;
 
     private TranscriptionDocument _transcriptionDocument = new();
-    private bool _isTranscribing = false;
+    private bool _isTranscribing;
     private PushAudioInputStream? _audioInputStream;
     private SpeechRecognizer? _recognizer;
+    private bool _disposed;
+    private EventHandler<SessionEventArgs>? _sessionStartedHandler;
+    private EventHandler<SessionEventArgs>? _sessionStoppedHandler;
 
     public event EventHandler<TranscriptionSegment>? OnTranscriptionUpdated;
 
@@ -33,6 +34,8 @@ public class TranscriptionService : IDisposable
 
     public async Task StartTranscriptionAsync(TranscriptionOptions options)
     {
+        ArgumentNullException.ThrowIfNull(options);
+
         if (_isTranscribing)
         {
             _logger.Log("Transcription is already in progress.");
@@ -42,7 +45,7 @@ public class TranscriptionService : IDisposable
         _logger.Log("Starting Azure Speech transcription...");
         _transcriptionDocument = new TranscriptionDocument { StartTime = DateTime.Now, Language = options.Language };
 
-        var settings = await _settingsService.LoadSettingsAsync();
+        var settings = await _settingsService.LoadSettingsAsync().ConfigureAwait(false);
 
         if (string.IsNullOrEmpty(settings.Region) || string.IsNullOrEmpty(settings.Key))
         {
@@ -76,20 +79,22 @@ public class TranscriptionService : IDisposable
         _recognizer.Recognizing += OnRecognizing;
         _recognizer.Recognized += OnRecognized;
         _recognizer.Canceled += OnCanceled;
-        _recognizer.SessionStarted += (s, e) => _logger.Log($"Transcription Session started: {e.SessionId}");
-        _recognizer.SessionStopped += (s, e) => _logger.Log($"Transcription Session stopped: {e.SessionId}");
+        _sessionStartedHandler = (s, e) => _logger.Log($"Transcription Session started: {e.SessionId}");
+        _recognizer.SessionStarted += _sessionStartedHandler;
+        _sessionStoppedHandler = (s, e) => _logger.Log($"Transcription Session stopped: {e.SessionId}");
+        _recognizer.SessionStopped += _sessionStoppedHandler;
 
         _audioCapture.AudioCaptured += OnAudioCaptured;
-        await _recognizer.StartContinuousRecognitionAsync();
+        await _recognizer.StartContinuousRecognitionAsync().ConfigureAwait(false);
         _isTranscribing = true;
         _logger.Log("Transcription service is now listening for audio data.");
     }
 
-    private void OnAudioCaptured(object? sender, byte[] audioData)
+    private void OnAudioCaptured(object? sender, AudioCaptureService.AudioCapturedEventArgs e)
     {
         if (_isTranscribing && _audioInputStream != null)
         {
-            _audioInputStream.Write(audioData);
+            _audioInputStream.Write(e.AudioData);
         }
     }
 
@@ -146,7 +151,7 @@ public class TranscriptionService : IDisposable
 
         if (_recognizer != null)
         {
-            await _recognizer.StopContinuousRecognitionAsync();
+            await _recognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
             _recognizer.Dispose();
             _recognizer = null;
         }
@@ -166,13 +171,41 @@ public class TranscriptionService : IDisposable
 
     public void Dispose()
     {
-        if (_recognizer != null)
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (_disposed)
+            return;
+
+        if (disposing)
         {
-            _recognizer.Recognized -= OnRecognized;
-            _recognizer.Canceled -= OnCanceled;
-            _recognizer.Dispose();
+            try
+            {
+                if (_recognizer != null)
+                {
+                    _recognizer.Recognizing -= OnRecognizing;
+                    _recognizer.Recognized -= OnRecognized;
+                    _recognizer.Canceled -= OnCanceled;
+                    if (_sessionStartedHandler != null) _recognizer.SessionStarted -= _sessionStartedHandler;
+                    if (_sessionStoppedHandler != null) _recognizer.SessionStopped -= _sessionStoppedHandler;
+                    _recognizer.Dispose();
+                    _recognizer = null;
+                }
+
+                _audioInputStream?.Dispose();
+                _audioInputStream = null;
+
+                _logger.Log("TranscriptionService disposed");
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed, ignore
+            }
         }
 
-        _audioInputStream?.Dispose();
+        _disposed = true;
     }
 }

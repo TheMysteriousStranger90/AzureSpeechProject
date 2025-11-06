@@ -1,6 +1,5 @@
 ﻿using Avalonia;
 using Avalonia.ReactiveUI;
-using System;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Services;
 using AzureSpeechProject.ViewModels;
@@ -9,16 +8,16 @@ using FileLogger = AzureSpeechProject.Logger.FileLogger;
 
 namespace AzureSpeechProject;
 
-class Program
+internal static class Program
 {
     private static ServiceProvider? _serviceProvider;
-    
+
     [STAThread]
     public static void Main(string[] args)
     {
         var services = new ServiceCollection();
         ConfigureServices(services);
-        
+
         _serviceProvider = services.BuildServiceProvider();
 
         BuildAvaloniaApp()
@@ -45,12 +44,12 @@ class Program
         services.AddSingleton<AudioCaptureService>();
         services.AddSingleton<TranscriptionService>();
         services.AddSingleton<TranslationService>();
-        
+
         // Register ViewModels
         services.AddTransient<TranscriptionViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddSingleton<MainWindowViewModel>();
-        
+
         // Register Views
         services.AddTransient<Views.MainWindow>();
         services.AddTransient<Views.TranscriptionView>();

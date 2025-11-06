@@ -1,9 +1,8 @@
-﻿using System;
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 
 namespace AzureSpeechProject.Helpers;
 
-public static class MainThreadHelper
+internal static class MainThreadHelper
 {
     public static void InvokeOnMainThread(Action action)
     {
@@ -17,7 +16,7 @@ public static class MainThreadHelper
         }
     }
 
-    public static async void InvokeAsync(Action action)
+    public static async Task InvokeAsync(Action action)
     {
         await Dispatcher.UIThread.InvokeAsync(action);
     }

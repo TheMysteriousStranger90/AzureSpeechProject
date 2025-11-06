@@ -1,6 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
-using AzureSpeechProject.Logger;
+﻿using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
@@ -8,14 +6,14 @@ using Microsoft.CognitiveServices.Speech.Translation;
 
 namespace AzureSpeechProject.Services;
 
-public class TranslationService : IDisposable
+public sealed class TranslationService : IDisposable
 {
     private readonly ILogger _logger;
     private readonly ISettingsService _settingsService;
     private readonly AudioCaptureService _audioCaptureService;
     private TranslationRecognizer? _recognizer;
     private PushAudioInputStream? _audioStream;
-    private bool _isTranslating = false;
+    private bool _isTranslating;
 
     public event EventHandler<TranslationResult>? OnTranslationUpdated;
 
@@ -34,11 +32,11 @@ public class TranslationService : IDisposable
             _logger.Log("Translation is already in progress.");
             return;
         }
-        
+
         _logger.Log($"Starting translation from {sourceLanguage} to {targetLanguage}");
-        
-        var settings = await _settingsService.LoadSettingsAsync();
-        
+
+        var settings = await _settingsService.LoadSettingsAsync().ConfigureAwait(false);
+
         if (string.IsNullOrEmpty(settings.Region) || string.IsNullOrEmpty(settings.Key))
         {
             throw new InvalidOperationException("Azure Speech credentials are not configured in settings");
@@ -49,10 +47,10 @@ public class TranslationService : IDisposable
         config.AddTargetLanguage(targetLanguage);
 
         var audioFormat = AudioStreamFormat.GetWaveFormatPCM(
-            (uint)settings.SampleRate, 
-            (byte)settings.BitsPerSample, 
+            (uint)settings.SampleRate,
+            (byte)settings.BitsPerSample,
             (byte)settings.Channels);
-            
+
         _audioStream = AudioInputStream.CreatePushStream(audioFormat);
         var audioConfig = AudioConfig.FromStreamInput(_audioStream);
         _recognizer = new TranslationRecognizer(config, audioConfig);
@@ -72,50 +70,61 @@ public class TranslationService : IDisposable
                 });
             }
         };
-        
+
         _recognizer.Canceled += (s, e) => _logger.Log($"Translation CANCELED: Reason={e.Reason}");
         _recognizer.SessionStarted += (s, e) => _logger.Log($"Translation Session started: {e.SessionId}");
         _recognizer.SessionStopped += (s, e) => _logger.Log($"Translation Session stopped: {e.SessionId}");
 
         _audioCaptureService.AudioCaptured += OnAudioCaptured;
-        await _recognizer.StartContinuousRecognitionAsync();
+        await _recognizer.StartContinuousRecognitionAsync().ConfigureAwait(false);
         _isTranslating = true;
         _logger.Log("Translation service is now listening for audio data.");
     }
 
-    private void OnAudioCaptured(object? sender, byte[] audioData)
+    private void OnAudioCaptured(object? sender, AudioCaptureService.AudioCapturedEventArgs e)
     {
         if (_isTranslating && _audioStream != null)
         {
-            _audioStream.Write(audioData, audioData.Length);
+            _audioStream.Write(e.AudioData, e.AudioData.Length);
         }
     }
 
     public async Task StopTranslationAsync()
     {
         if (!_isTranslating) return;
-        
+
         _logger.Log("Stopping translation service...");
         _audioCaptureService.AudioCaptured -= OnAudioCaptured;
 
         if (_recognizer != null)
         {
-            await _recognizer.StopContinuousRecognitionAsync();
+            await _recognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
             _recognizer.Dispose();
             _recognizer = null;
         }
+
         if (_audioStream != null)
         {
             _audioStream.Close();
             _audioStream = null;
         }
+
         _isTranslating = false;
         _logger.Log("Translation service stopped.");
     }
 
     public void Dispose()
     {
-        _recognizer?.Dispose();
-        _audioStream?.Dispose();
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _recognizer?.Dispose();
+            _audioStream?.Dispose();
+        }
     }
 }

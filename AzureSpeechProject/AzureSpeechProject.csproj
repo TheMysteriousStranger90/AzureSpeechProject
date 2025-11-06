@@ -1,39 +1,108 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<!--
+    Author: Bohdan Harabadzhyu
+    Description: Azure Speech Recognition and Translation application
+-->
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net9.0</TargetFramework>
         <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <AnalysisLevel>latest</AnalysisLevel>
+        <AnalysisMode>All</AnalysisMode>
+        <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-        <Authors>Bohdan Harabadzhyu</Authors>
         <ApplicationIcon>./Assets/icon.ico</ApplicationIcon>
-        <AssemblyVersion>1.1.1.0</AssemblyVersion>
-        <FileVersion>1.1.1.0</FileVersion>
-        <InformationalVersion>1.1.1.0</InformationalVersion>
+
+        <!-- Version Info -->
+        <AssemblyVersion>1.2.0.0</AssemblyVersion>
+        <FileVersion>1.2.0.0</FileVersion>
+        <InformationalVersion>1.2.0</InformationalVersion>
+
+        <!-- Product Info -->
+        <Authors>Bohdan Harabadzhyu</Authors>
+        <Company>Bohdan Harabadzhyu</Company>
         <Product>Azure Speech Recognition and Translation</Product>
         <Description>A desktop application built with Avalonia UI that provides real-time speech recognition and translation using Azure Speech Services. Convert spoken words into text and translate them into multiple languages with professional-grade accuracy.</Description>
-        <Copyright>Copyright © Bohdan Harabadzhyu</Copyright>
+        <Copyright>Copyright © 2025 Bohdan Harabadzhyu</Copyright>
+
+        <!-- Repository Info -->
         <RepositoryUrl>https://github.com/TheMysteriousStranger90/AzureSpeechProject</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
+        <PackageProjectUrl>https://github.com/TheMysteriousStranger90/AzureSpeechProject</PackageProjectUrl>
+
+        <!-- Publishing Settings -->
+        <PublishSingleFile>true</PublishSingleFile>
+        <PublishTrimmed>false</PublishTrimmed>
+        <SelfContained>true</SelfContained>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+        <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+
+        <!-- ReadyToRun for faster startup -->
+        <PublishReadyToRun>true</PublishReadyToRun>
+        <PublishReadyToRunShowWarnings>true</PublishReadyToRunShowWarnings>
+        <PublishReadyToRunComposite>true</PublishReadyToRunComposite>
+
+        <!-- Performance Optimizations -->
+        <TieredCompilation>true</TieredCompilation>
+        <TieredCompilationQuickJit>true</TieredCompilationQuickJit>
+        <ServerGarbageCollection>true</ServerGarbageCollection>
+
+        <!-- Debug Settings -->
+        <DebugType>embedded</DebugType>
+        <DebugSymbols>true</DebugSymbols>
+
+        <!-- Package Management -->
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+
+        <!-- Warning Configuration -->
+        <WarningsNotAsErrors>CA1031;CA1416;CA1515;CA1812;NU1701</WarningsNotAsErrors>
+
+        <!-- Language Features -->
+        <LangVersion>latest</LangVersion>
+        <Features>strict</Features>
     </PropertyGroup>
+
+    <!-- Release Configuration -->
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <Optimize>true</Optimize>
+        <DebugType>none</DebugType>
+        <DebugSymbols>false</DebugSymbols>
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <!-- Debug Configuration -->
+    <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+        <Optimize>false</Optimize>
+        <DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" />
+        <PackageReference Include="Avalonia.Desktop" />
+        <PackageReference Include="Avalonia.Themes.Fluent" />
+        <PackageReference Include="Avalonia.Fonts.Inter" />
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" />
+        <PackageReference Include="Avalonia.ReactiveUI" />
+        <PackageReference Include="Microsoft.CognitiveServices.Speech" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+        <PackageReference Include="NAudio" />
+        <PackageReference Include="ReactiveUI.Fody" />
+        <PackageReference Include="System.Net.WebSockets.Client" />
+        <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+        <PackageReference Include="SonarAnalyzer.CSharp">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
 
     <ItemGroup>
         <AvaloniaResource Include="Assets\**"/>
     </ItemGroup>
-    
-    <ItemGroup>
-        <PackageReference Include="Avalonia" Version="11.3.2" />
-        <PackageReference Include="Avalonia.Desktop" Version="11.3.2" />
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.2" />
-        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.2" />
-        <PackageReference Include="Avalonia.ReactiveUI" Version="11.3.2" />
-        <PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.44.0" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
-        <PackageReference Include="NAudio" Version="2.2.1" />
-        <PackageReference Include="ReactiveUI.Fody" Version="19.5.41" />
-        <PackageReference Include="System.Net.WebSockets.Client" Version="4.3.2" />
-        <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
-    </ItemGroup>
-    
 </Project>

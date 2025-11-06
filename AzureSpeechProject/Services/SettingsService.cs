@@ -1,19 +1,31 @@
-﻿using System;
-using System.IO;
+﻿using System.Globalization;
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
 
 namespace AzureSpeechProject.Services;
 
-public class SettingsService : ISettingsService
+internal sealed class SettingsService : ISettingsService
 {
     private readonly ILogger _logger;
     private readonly string _settingsFilePath;
     private readonly byte[] _entropy;
+
+    private static readonly JsonSerializerOptions JsonReadOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
+
+    private static readonly JsonSerializerOptions JsonWriteOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
 
     public SettingsService(ILogger logger)
     {
@@ -32,7 +44,7 @@ public class SettingsService : ISettingsService
         _entropy = Encoding.UTF8.GetBytes("AzureSpeechProject_v1.0_Entropy_Azure");
     }
 
-    public string GetSettingsFilePath() => _settingsFilePath;
+    public string SettingsFilePath => _settingsFilePath;
 
     public async Task<AppSettings> LoadSettingsAsync()
     {
@@ -45,20 +57,15 @@ public class SettingsService : ISettingsService
             {
                 _logger.Log("📋 Settings file not found, creating default settings");
                 var defaultSettings = CreateDefaultSettings();
-                await SaveSettingsAsync(defaultSettings);
+                await SaveSettingsAsync(defaultSettings).ConfigureAwait(false);
                 return defaultSettings;
             }
 
-            var jsonContent = await File.ReadAllTextAsync(_settingsFilePath);
-            _logger.Log($"📄 Read settings file content (length: {jsonContent.Length} chars)");
+            var jsonContent = await File.ReadAllTextAsync(_settingsFilePath).ConfigureAwait(false);
+            _logger.Log(
+                $"📄 Read settings file content (length: {jsonContent.Length.ToString(CultureInfo.InvariantCulture)} chars)");
 
-            var jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                PropertyNameCaseInsensitive = true
-            };
-
-            var settingsData = JsonSerializer.Deserialize<SettingsData>(jsonContent, jsonOptions);
+            var settingsData = JsonSerializer.Deserialize<SettingsData>(jsonContent, JsonReadOptions);
 
             if (settingsData == null)
             {
@@ -66,7 +73,8 @@ public class SettingsService : ISettingsService
                 return CreateDefaultSettings();
             }
 
-            _logger.Log($"📊 Deserialized settings - Region: '{settingsData.Region}', HasEncryptedKey: {!string.IsNullOrEmpty(settingsData.EncryptedKey)}");
+            _logger.Log(
+                $"📊 Deserialized settings - Region: '{settingsData.Region}', HasEncryptedKey: {!string.IsNullOrEmpty(settingsData.EncryptedKey)}");
 
             var settings = new AppSettings
             {
@@ -81,17 +89,29 @@ public class SettingsService : ISettingsService
 
             if (!string.IsNullOrEmpty(settingsData.EncryptedKey))
             {
-                try
+                if (OperatingSystem.IsWindows())
                 {
-                    var encryptedBytes = Convert.FromBase64String(settingsData.EncryptedKey);
-                    var decryptedBytes = ProtectedData.Unprotect(encryptedBytes, _entropy, DataProtectionScope.CurrentUser);
-                    settings.Key = Encoding.UTF8.GetString(decryptedBytes);
-                    _logger.Log("🔓 Azure Speech Service key decrypted successfully");
+                    try
+                    {
+                        var encryptedBytes = Convert.FromBase64String(settingsData.EncryptedKey);
+                        var decryptedBytes = DecryptData(encryptedBytes);
+                        settings.Key = Encoding.UTF8.GetString(decryptedBytes);
+                        _logger.Log("🔓 Azure Speech Service key decrypted successfully");
+                    }
+                    catch (CryptographicException ex)
+                    {
+                        _logger.Log($"❌ Failed to decrypt Azure Speech Service key: {ex.Message}");
+                        settings.Key = string.Empty;
+                    }
+                    catch (FormatException ex)
+                    {
+                        _logger.Log($"❌ Invalid encrypted key format: {ex.Message}");
+                        settings.Key = string.Empty;
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.Log($"❌ Failed to decrypt Azure Speech Service key: {ex.Message}");
-                    settings.Key = string.Empty;
+                    _logger.Log("⚠️ Encryption not supported on this platform, key not decrypted");
                 }
             }
             else
@@ -99,23 +119,36 @@ public class SettingsService : ISettingsService
                 _logger.Log("⚠️ No encrypted Azure Speech Service key found in settings");
             }
 
-            _logger.Log($"✅ Final settings loaded - OutputDirectory: '{settings.OutputDirectory}', KeyConfigured: {!string.IsNullOrEmpty(settings.Key)}");
+            _logger.Log(
+                $"✅ Final settings loaded - OutputDirectory: '{settings.OutputDirectory}', KeyConfigured: {!string.IsNullOrEmpty(settings.Key)}");
             return settings;
         }
-        catch (Exception ex)
+        catch (JsonException ex)
         {
-            _logger.Log($"❌ Error loading Azure Speech Service settings: {ex.Message}");
-            _logger.Log($"Stack trace: {ex.StackTrace}");
+            _logger.Log($"❌ JSON error loading Azure Speech Service settings: {ex.Message}");
+            return CreateDefaultSettings();
+        }
+        catch (IOException ex)
+        {
+            _logger.Log($"❌ IO error loading Azure Speech Service settings: {ex.Message}");
+            return CreateDefaultSettings();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.Log($"❌ Access denied loading Azure Speech Service settings: {ex.Message}");
             return CreateDefaultSettings();
         }
     }
 
     public async Task SaveSettingsAsync(AppSettings settings)
     {
+        ArgumentNullException.ThrowIfNull(settings);
+
         try
         {
             _logger.Log($"💾 Saving Azure Speech Service settings to: {_settingsFilePath}");
-            _logger.Log($"Settings to save - Region: '{settings.Region}', OutputDirectory: '{settings.OutputDirectory}', KeyProvided: {!string.IsNullOrEmpty(settings.Key)}");
+            _logger.Log(
+                $"Settings to save - Region: '{settings.Region}', OutputDirectory: '{settings.OutputDirectory}', KeyProvided: {!string.IsNullOrEmpty(settings.Key)}");
 
             var settingsDirectory = Path.GetDirectoryName(_settingsFilePath);
             if (!string.IsNullOrEmpty(settingsDirectory) && !Directory.Exists(settingsDirectory))
@@ -137,17 +170,24 @@ public class SettingsService : ISettingsService
 
             if (!string.IsNullOrEmpty(settings.Key))
             {
-                try
+                if (OperatingSystem.IsWindows())
                 {
-                    var keyBytes = Encoding.UTF8.GetBytes(settings.Key);
-                    var encryptedKeyBytes = ProtectedData.Protect(keyBytes, _entropy, DataProtectionScope.CurrentUser);
-                    settingsData.EncryptedKey = Convert.ToBase64String(encryptedKeyBytes);
-                    _logger.Log("🔐 Azure Speech Service key encrypted successfully");
+                    try
+                    {
+                        var keyBytes = Encoding.UTF8.GetBytes(settings.Key);
+                        var encryptedKeyBytes = EncryptData(keyBytes);
+                        settingsData.EncryptedKey = Convert.ToBase64String(encryptedKeyBytes);
+                        _logger.Log("🔐 Azure Speech Service key encrypted successfully");
+                    }
+                    catch (CryptographicException ex)
+                    {
+                        _logger.Log($"❌ Failed to encrypt Azure Speech Service key: {ex.Message}");
+                        throw new InvalidOperationException("Failed to encrypt Azure Speech Service credentials", ex);
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.Log($"❌ Failed to encrypt Azure Speech Service key: {ex.Message}");
-                    throw new InvalidOperationException("Failed to encrypt Azure Speech Service credentials", ex);
+                    _logger.Log("⚠️ Encryption not supported on this platform, key not encrypted");
                 }
             }
             else
@@ -155,24 +195,18 @@ public class SettingsService : ISettingsService
                 _logger.Log("⚠️ No Azure Speech Service key provided, saving without encryption");
             }
 
-            var jsonOptions = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                PropertyNameCaseInsensitive = true
-            };
+            var json = JsonSerializer.Serialize(settingsData, JsonWriteOptions);
 
-            var json = JsonSerializer.Serialize(settingsData, jsonOptions);
-            
-            _logger.Log($"📝 Serialized settings data for Azure Speech Service");
+            _logger.Log("📝 Serialized settings data for Azure Speech Service");
 
-            await File.WriteAllTextAsync(_settingsFilePath, json);
+            await File.WriteAllTextAsync(_settingsFilePath, json).ConfigureAwait(false);
             _logger.Log($"✅ Azure Speech Service settings file written to disk: {_settingsFilePath}");
 
             if (File.Exists(_settingsFilePath))
             {
                 var fileInfo = new FileInfo(_settingsFilePath);
-                _logger.Log($"📊 Settings file confirmed - Size: {fileInfo.Length} bytes, LastWrite: {fileInfo.LastWriteTime}");
+                _logger.Log(
+                    $"📊 Settings file confirmed - Size: {fileInfo.Length.ToString(CultureInfo.InvariantCulture)} bytes, LastWrite: {fileInfo.LastWriteTime.ToString(CultureInfo.CurrentCulture)}");
             }
             else
             {
@@ -187,10 +221,9 @@ public class SettingsService : ISettingsService
 
             _logger.Log("✅ Azure Speech Service settings saved successfully with encryption");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logger.Log($"❌ Error saving Azure Speech Service settings: {ex.Message}");
-            _logger.Log($"Stack trace: {ex.StackTrace}");
             throw;
         }
     }
@@ -201,14 +234,26 @@ public class SettingsService : ISettingsService
         {
             _logger.Log("🔄 Resetting Azure Speech Service settings to defaults");
             var defaultSettings = CreateDefaultSettings();
-            await SaveSettingsAsync(defaultSettings);
+            await SaveSettingsAsync(defaultSettings).ConfigureAwait(false);
             _logger.Log("✅ Azure Speech Service settings reset to defaults");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             _logger.Log($"❌ Error resetting Azure Speech Service settings: {ex.Message}");
             throw;
         }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private byte[] EncryptData(byte[] data)
+    {
+        return ProtectedData.Protect(data, _entropy, DataProtectionScope.CurrentUser);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private byte[] DecryptData(byte[] encryptedData)
+    {
+        return ProtectedData.Unprotect(encryptedData, _entropy, DataProtectionScope.CurrentUser);
     }
 
     private static AppSettings CreateDefaultSettings()
@@ -228,7 +273,7 @@ public class SettingsService : ISettingsService
         };
     }
 
-    private class SettingsData
+    private sealed class SettingsData
     {
         public string Region { get; set; } = string.Empty;
         public string EncryptedKey { get; set; } = string.Empty;

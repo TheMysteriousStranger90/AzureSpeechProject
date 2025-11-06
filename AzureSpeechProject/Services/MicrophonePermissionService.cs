@@ -1,11 +1,10 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Runtime.InteropServices;
 using AzureSpeechProject.Logger;
 using NAudio.Wave;
 
 namespace AzureSpeechProject.Services;
 
-public class MicrophonePermissionService : IMicrophonePermissionService
+public sealed class MicrophonePermissionService : IMicrophonePermissionService
 {
     private readonly ILogger _logger;
 
@@ -21,14 +20,19 @@ public class MicrophonePermissionService : IMicrophonePermissionService
             _logger.Log("CheckMicrophonePermissionAsync called");
             if (OperatingSystem.IsWindows())
             {
-                return await CheckWindowsMicrophonePermissionAsync();
+                return await CheckWindowsMicrophonePermissionAsync().ConfigureAwait(false);
             }
 
             return true;
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException ex)
         {
-            _logger.Log($"Error checking microphone permission: {ex.Message}");
+            _logger.Log($"Unauthorized access to microphone: {ex.Message}");
+            return false;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.Log($"Invalid operation checking microphone: {ex.Message}");
             return false;
         }
     }
@@ -38,11 +42,16 @@ public class MicrophonePermissionService : IMicrophonePermissionService
         try
         {
             _logger.Log("RequestMicrophonePermissionAsync called");
-            return await CheckMicrophonePermissionAsync();
+            return await CheckMicrophonePermissionAsync().ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException ex)
         {
-            _logger.Log($"Error requesting microphone permission: {ex.Message}");
+            _logger.Log($"Unauthorized access requesting microphone: {ex.Message}");
+            return false;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.Log($"Invalid operation requesting microphone: {ex.Message}");
             return false;
         }
     }
@@ -124,7 +133,7 @@ public class MicrophonePermissionService : IMicrophonePermissionService
 
                         var receivedDataTask = dataReceivedEvent.Task;
                         var timeoutTask = Task.Delay(3000);
-                        var completedTask = await Task.WhenAny(receivedDataTask, timeoutTask);
+                        var completedTask = await Task.WhenAny(receivedDataTask, timeoutTask).ConfigureAwait(false);
 
                         waveIn.StopRecording();
 
@@ -133,13 +142,18 @@ public class MicrophonePermissionService : IMicrophonePermissionService
                             _logger.Log("Microphone test timed out - no data received within 3 seconds");
                         }
                     }
-                    catch (Exception ex)
+                    catch (UnauthorizedAccessException ex)
                     {
-                        _logger.Log($"Error during microphone recording test: {ex.Message}");
+                        _logger.Log($"Unauthorized access during recording test: {ex.Message}");
+                        return false;
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        _logger.Log($"Invalid operation during recording test: {ex.Message}");
                         return false;
                     }
 
-                    await Task.Delay(200);
+                    await Task.Delay(200).ConfigureAwait(false);
 
                     if (accessDenied)
                     {
@@ -166,7 +180,6 @@ public class MicrophonePermissionService : IMicrophonePermissionService
                     else
                     {
                         _logger.Log("Microphone accessible but no data received - check if microphone is muted");
-                        
                         return true;
                     }
                 }
@@ -175,7 +188,7 @@ public class MicrophonePermissionService : IMicrophonePermissionService
                     _logger.Log($"Microphone access explicitly denied: {ex.Message}");
                     return false;
                 }
-                catch (System.Runtime.InteropServices.COMException ex)
+                catch (COMException ex)
                 {
                     _logger.Log($"COM error accessing microphone: {ex.Message} (HResult: {ex.HResult:X})");
                     if (ex.HResult == -2147023728)
@@ -191,11 +204,21 @@ public class MicrophonePermissionService : IMicrophonePermissionService
                     return false;
                 }
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException ex)
             {
-                _logger.Log($"Error checking Windows microphone permission: {ex.Message}");
+                _logger.Log($"Unauthorized access checking Windows microphone: {ex.Message}");
                 return false;
             }
-        });
+            catch (COMException ex)
+            {
+                _logger.Log($"COM error checking Windows microphone: {ex.Message}");
+                return false;
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.Log($"Invalid operation checking Windows microphone: {ex.Message}");
+                return false;
+            }
+        }).ConfigureAwait(false);
     }
 }

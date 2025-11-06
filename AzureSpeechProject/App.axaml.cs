@@ -5,14 +5,17 @@ using AzureSpeechProject.ViewModels;
 using AzureSpeechProject.Views;
 using AzureSpeechProject.Logger;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 
 namespace AzureSpeechProject;
 
-public partial class App : Application
+internal sealed class App : Application
 {
     private readonly ServiceProvider? _serviceProvider;
-    private ILogger? _logger;
+    private readonly ILogger? _logger;
+
+    public App()
+    {
+    }
 
     public App(ServiceProvider serviceProvider)
     {
@@ -21,9 +24,10 @@ public partial class App : Application
             _serviceProvider = serviceProvider;
             _logger = _serviceProvider?.GetService<ILogger>();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             Console.WriteLine($"Error in App constructor: {ex.Message}");
+            throw;
         }
     }
 
@@ -47,7 +51,7 @@ public partial class App : Application
         try
         {
             _logger?.Log("Framework initialization completed, creating main window...");
-            
+
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 if (_serviceProvider != null)
@@ -61,11 +65,11 @@ public partial class App : Application
                         };
                         _logger?.Log("Main window created with ViewModel successfully");
                     }
-                    catch (Exception ex)
+                    catch (InvalidOperationException ex)
                     {
                         _logger?.Log($"Error creating main window with ViewModel: {ex.Message}");
                         Console.WriteLine($"Error creating main window with ViewModel: {ex}");
-                        
+
                         desktop.MainWindow = new MainWindow();
                         _logger?.Log("Created fallback main window without ViewModel");
                     }
