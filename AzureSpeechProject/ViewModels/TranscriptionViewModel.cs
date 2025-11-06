@@ -54,7 +54,9 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
         TranslationService translationService,
         ITranscriptFileService fileService,
         AudioCaptureService audioCaptureService,
+#pragma warning disable IDE0060
         INetworkStatusService networkStatusService,
+#pragma warning disable IDE0060
         IMicrophonePermissionService microphonePermissionService,
         ISettingsService settingsService)
     {
