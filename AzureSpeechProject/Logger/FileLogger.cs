@@ -1,5 +1,4 @@
 ﻿using System.Globalization;
-using AzureSpeechProject.Constants;
 using AzureSpeechProject.Helpers;
 
 namespace AzureSpeechProject.Logger;
@@ -8,6 +7,7 @@ internal sealed class FileLogger : ILogger, IDisposable
 {
     private readonly ReaderWriterLockSlim _lock = new();
     private string _logFilePath = string.Empty;
+    private string _cachedOutputDirectory = string.Empty;
     private bool _disposed;
 
     public FileLogger()
@@ -22,16 +22,6 @@ internal sealed class FileLogger : ILogger, IDisposable
         try
         {
             _lock.EnterWriteLock();
-
-            string parentDir = Path.GetDirectoryName(FileConstants.TranscriptsDirectory) ??
-                               throw new InvalidOperationException("Unable to determine parent directory.");
-            string currentLogParent = Path.GetDirectoryName(Path.GetDirectoryName(_logFilePath)) ??
-                                      throw new InvalidOperationException("Unable to determine current log parent directory.");
-
-            if (parentDir != currentLogParent)
-            {
-                UpdateLogPath();
-            }
 
             var logEntry = $"[{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)}] {message}";
 
@@ -65,23 +55,57 @@ internal sealed class FileLogger : ILogger, IDisposable
         }
     }
 
+    public void UpdateLogPathFromSettings(string outputDirectory)
+    {
+        if (_cachedOutputDirectory != outputDirectory)
+        {
+            _cachedOutputDirectory = outputDirectory;
+            UpdateLogPath();
+        }
+    }
+
     private void UpdateLogPath()
     {
-        string? parentDir = Path.GetDirectoryName(FileConstants.TranscriptsDirectory);
-        if (string.IsNullOrEmpty(parentDir))
+        try
         {
-            parentDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            string? parentDir;
+
+            if (!string.IsNullOrWhiteSpace(_cachedOutputDirectory))
+            {
+                parentDir = Path.GetDirectoryName(_cachedOutputDirectory);
+                if (string.IsNullOrEmpty(parentDir))
+                {
+                    parentDir = _cachedOutputDirectory;
+                }
+            }
+            else
+            {
+                parentDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "Azure Speech Services");
+            }
+
+            var logsDirectory = Path.Combine(parentDir, "Logs");
+
+            if (!Directory.Exists(logsDirectory))
+            {
+                Directory.CreateDirectory(logsDirectory);
+            }
+
+            var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+            _logFilePath = Path.Combine(logsDirectory, $"azure_speech_{date}.log");
         }
-
-        var logsDirectory = Path.Combine(parentDir, "Logs");
-
-        if (!Directory.Exists(logsDirectory))
+        catch (Exception ex)
         {
-            Directory.CreateDirectory(logsDirectory);
+            Console.WriteLine($"Error updating log path: {ex.Message}");
+            var tempLogsDir = Path.Combine(Path.GetTempPath(), "AzureSpeechLogs");
+            if (!Directory.Exists(tempLogsDir))
+            {
+                Directory.CreateDirectory(tempLogsDir);
+            }
+            var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+            _logFilePath = Path.Combine(tempLogsDir, $"azure_speech_{date}.log");
         }
-
-        var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
-        _logFilePath = Path.Combine(logsDirectory, $"azure_speech_{date}.log");
     }
 
     public void Dispose()

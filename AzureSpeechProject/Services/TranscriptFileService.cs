@@ -1,5 +1,7 @@
 ﻿using System.Globalization;
 using System.Text.Json;
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
 using AzureSpeechProject.Constants;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
@@ -10,7 +12,12 @@ internal sealed class TranscriptFileService : ITranscriptFileService
 {
     private readonly ILogger _logger;
     private readonly ISettingsService _settingsService;
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)
+    };
 
     public TranscriptFileService(ILogger logger, ISettingsService settingsService)
     {
@@ -51,7 +58,7 @@ internal sealed class TranscriptFileService : ITranscriptFileService
                 _ => transcript.GetTextTranscript()
             };
 
-            await File.WriteAllTextAsync(filePath, content, cancellationToken).ConfigureAwait(false);
+            await File.WriteAllTextAsync(filePath, content, System.Text.Encoding.UTF8, cancellationToken).ConfigureAwait(false);
 
             string logMessage = !string.IsNullOrEmpty(translatedLanguage)
                 ? $"Saved {translatedLanguage} translation to {filePath}"

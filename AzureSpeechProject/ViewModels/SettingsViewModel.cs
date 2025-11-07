@@ -168,6 +168,12 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
             _logger.Log("Created AppSettings object, calling service SaveSettingsAsync");
             await _settingsService.SaveSettingsAsync(settings, saveCts.Token).ConfigureAwait(false);
             _logger.Log("Settings saved from ViewModel successfully");
+
+            if (_logger is FileLogger fileLogger)
+            {
+                fileLogger.UpdateLogPathFromSettings(OutputDirectory);
+                _logger.Log($"Updated log path to use directory: {OutputDirectory}");
+            }
         }
         catch (OperationCanceledException)
         {
