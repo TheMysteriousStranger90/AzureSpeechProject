@@ -4,10 +4,10 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:AzureSpeechProject.ViewModels"
              xmlns:converters="using:AzureSpeechProject.Converters"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="720"
              x:Class="AzureSpeechProject.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
-    
+
     <UserControl.Resources>
         <converters:BoolToPasswordCharMultiConverter x:Key="BoolToPasswordCharMultiConverter" />
         <converters:BoolToShowHideTextMultiConverter x:Key="BoolToShowHideTextMultiConverter" />
@@ -37,7 +37,7 @@
 
                         <TextBlock Classes="label" Text="Azure Speech Key" />
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBox Grid.Column="0" 
+                            <TextBox Grid.Column="0"
                                      Text="{Binding Key}"
                                      Watermark="Enter your Azure Speech Service key">
                                 <TextBox.PasswordChar>
@@ -163,7 +163,7 @@
                             <Button Grid.Column="1" Content="Browse..."
                                     Command="{Binding BrowseCommand}"
                                     Classes="primary"
-                                    Margin="8,4,0,8" Padding="12,8" 
+                                    Margin="8,4,0,8" Padding="12,8"
                                     VerticalAlignment="Top"
                                     MinWidth="0"
                                     CornerRadius="4">
