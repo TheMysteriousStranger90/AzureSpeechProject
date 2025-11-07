@@ -5,52 +5,59 @@ using AzureSpeechProject.ViewModels;
 using ReactiveUI;
 using System.Reactive.Disposables;
 
-namespace AzureSpeechProject.Views
+namespace AzureSpeechProject.Views;
+
+public partial class MainWindow : ReactiveWindow<MainWindowViewModel>
 {
-    public partial class MainWindow : ReactiveWindow<MainWindowViewModel>
+    public MainWindow()
     {
-        public MainWindow()
-        {
-            InitializeComponent();
-            
-            this.WhenActivated(disposables =>
-            {
-                if (DataContext is MainWindowViewModel viewModel)
-                {
-                    viewModel.Activator.Activate();
-                    
-                    Disposable.Create(() => viewModel.Activator.Deactivate())
-                        .DisposeWith(disposables);
-                }
-            });
-        }
+        InitializeComponent();
 
-        public void TitleBar_PointerPressed(object? sender, PointerPressedEventArgs e)
+        this.WhenActivated(disposables =>
         {
-            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            if (DataContext is MainWindowViewModel viewModel)
             {
-                BeginMoveDrag(e);
+                viewModel.Activator.Activate();
+
+                Disposable.Create(() => viewModel.Activator.Deactivate())
+                    .DisposeWith(disposables);
             }
-        }
+        });
+    }
 
-        public void MinimizeButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-        {
-            WindowState = WindowState.Minimized;
-        }
+    public void TitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
 
-        public void MaximizeButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            
-            if (this.FindControl<Button>("MaximizeButton") is Button maxButton)
-            {
-                maxButton.Content = WindowState == WindowState.Maximized ? "🗗" : "🗖";
-            }
+            BeginMoveDrag(e);
         }
+    }
 
-        public void CloseButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    public void MinimizeButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+
+        WindowState = WindowState.Minimized;
+    }
+
+    public void MaximizeButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+        if (this.FindControl<Button>("MaximizeButton") is Button maxButton)
         {
-            Close();
+            maxButton.Content = WindowState == WindowState.Maximized ? "🗗" : "🗖";
         }
+    }
+
+    public void CloseButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+
+        Close();
     }
 }

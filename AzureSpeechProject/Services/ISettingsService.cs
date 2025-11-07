@@ -1,11 +1,11 @@
-﻿using System.Threading.Tasks;
-using AzureSpeechProject.Models;
+﻿using AzureSpeechProject.Models;
 
-namespace AzureSpeechProject.Services;
-
-public interface ISettingsService
+namespace AzureSpeechProject.Services
 {
-    Task<AppSettings> LoadSettingsAsync();
-    Task SaveSettingsAsync(AppSettings settings);
-    Task ResetToDefaultsAsync();
+    public interface ISettingsService
+    {
+        Task<AppSettings> LoadSettingsAsync(CancellationToken cancellationToken = default);
+        Task SaveSettingsAsync(AppSettings settings, CancellationToken cancellationToken = default);
+        Task ResetToDefaultsAsync(CancellationToken cancellationToken = default);
+    }
 }

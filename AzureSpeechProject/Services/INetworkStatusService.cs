@@ -1,9 +1,8 @@
-﻿using System.Threading.Tasks;
-
-namespace AzureSpeechProject.Services;
-
-public interface INetworkStatusService
+﻿namespace AzureSpeechProject.Services
 {
-    Task<bool> IsInternetAvailableAsync();
-    bool IsNetworkConnected();
+    public interface INetworkStatusService
+    {
+        Task<bool> IsInternetAvailableAsync(CancellationToken cancellationToken = default);
+        bool IsNetworkConnected();
+    }
 }

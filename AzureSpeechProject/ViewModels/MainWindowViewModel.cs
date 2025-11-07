@@ -1,19 +1,19 @@
-﻿using System;
-using System.Reactive.Disposables;
+﻿using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Services;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
-using System.Threading.Tasks;
 
 namespace AzureSpeechProject.ViewModels;
 
-public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
+public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDisposable
 {
     private readonly ILogger _logger;
     private readonly INetworkStatusService _networkStatusService;
     private readonly IMicrophonePermissionService _microphonePermissionService;
+    private CancellationTokenSource? _initializationCts;
+    private bool _disposed;
 
     public ViewModelActivator Activator { get; } = new ViewModelActivator();
 
@@ -30,22 +30,24 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
         INetworkStatusService networkStatusService,
         IMicrophonePermissionService microphonePermissionService)
     {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        TranscriptionViewModel =
+            transcriptionViewModel ?? throw new ArgumentNullException(nameof(transcriptionViewModel));
+        SettingsViewModel = settingsViewModel ?? throw new ArgumentNullException(nameof(settingsViewModel));
+        _networkStatusService = networkStatusService ?? throw new ArgumentNullException(nameof(networkStatusService));
+        _microphonePermissionService = microphonePermissionService ??
+                                       throw new ArgumentNullException(nameof(microphonePermissionService));
+
         try
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            TranscriptionViewModel =
-                transcriptionViewModel ?? throw new ArgumentNullException(nameof(transcriptionViewModel));
-            SettingsViewModel = settingsViewModel ?? throw new ArgumentNullException(nameof(settingsViewModel));
-            _networkStatusService =
-                networkStatusService ?? throw new ArgumentNullException(nameof(networkStatusService));
-            _microphonePermissionService =
-                microphonePermissionService ?? throw new ArgumentNullException(nameof(microphonePermissionService));
-
             this.WhenActivated(disposables =>
             {
                 try
                 {
-                    Observable.FromAsync(CheckMicrophoneAccess)
+                    _initializationCts = new CancellationTokenSource();
+                    var token = _initializationCts.Token;
+
+                    Observable.FromAsync(() => CheckMicrophoneAccess(token))
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(
                             isAvailable =>
@@ -59,11 +61,21 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                                         "⚠️ Microphone access denied. Please grant microphone permissions in Windows Settings.";
                                 }
                             },
-                            ex => _logger.Log($"Error checking microphone access: {ex.Message}")
+                            ex =>
+                            {
+                                if (ex is OperationCanceledException)
+                                {
+                                    _logger.Log("Microphone check was cancelled");
+                                }
+                                else
+                                {
+                                    _logger.Log($"Error checking microphone access: {ex.Message}");
+                                }
+                            }
                         )
                         .DisposeWith(disposables);
 
-                    Observable.FromAsync(CheckInternetConnectivity)
+                    Observable.FromAsync(() => CheckInternetConnectivity(token))
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(
                             isAvailable =>
@@ -82,28 +94,48 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                                         "No internet connection and microphone access denied. Check both.";
                                 }
                             },
-                            ex => _logger.Log($"Error checking internet connectivity: {ex.Message}")
+                            ex =>
+                            {
+                                if (ex is OperationCanceledException)
+                                {
+                                    _logger.Log("Internet check was cancelled");
+                                }
+                                else
+                                {
+                                    _logger.Log($"Error checking internet connectivity: {ex.Message}");
+                                }
+                            }
                         )
                         .DisposeWith(disposables);
 
                     Observable.FromAsync(async () =>
                         {
-                            StatusMessage = "Loading settings...";
-                            await SettingsViewModel.LoadSettingsAsync();
-                            _logger.Log("Settings preloaded in MainWindowViewModel");
-                            StatusMessage = "Settings loaded successfully";
+                            try
+                            {
+                                StatusMessage = "Loading settings...";
+                                await SettingsViewModel.LoadSettingsAsync(token).ConfigureAwait(false);
+                                _logger.Log("Settings preloaded in MainWindowViewModel");
+                                StatusMessage = "Settings loaded successfully";
 
-                            await Task.Delay(1000);
+                                await Task.Delay(1000, token).ConfigureAwait(false);
 
-                            UpdateStatusMessage();
+                                UpdateStatusMessage();
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                _logger.Log("Settings loading was cancelled");
+                            }
                         })
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(
                             _ => { },
                             ex =>
                             {
-                                _logger.Log($"Error preloading settings in MainWindowViewModel: {ex.Message}");
-                                StatusMessage = "❌ Error loading settings";
+                                if (ex is not OperationCanceledException)
+                                {
+                                    _logger.Log($"Error preloading settings in MainWindowViewModel: {ex.Message}");
+                                    StatusMessage = "❌ Error loading settings";
+                                }
                             })
                         .DisposeWith(disposables);
 
@@ -155,6 +187,13 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                         })
                         .DisposeWith(disposables);
 
+                    Disposable.Create(() =>
+                    {
+                        _initializationCts?.Cancel();
+                        _initializationCts?.Dispose();
+                        _initializationCts = null;
+                    }).DisposeWith(disposables);
+
                     _logger.Log("MainWindowViewModel activated successfully");
                 }
                 catch (Exception ex)
@@ -164,10 +203,15 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
                 }
             });
         }
+        catch (ArgumentNullException ex)
+        {
+            _logger.Log($"Argument null in MainWindowViewModel constructor: {ex}");
+            StatusMessage = "❌ Critical initialization error";
+        }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error in MainWindowViewModel constructor: {ex}");
-            throw;
+            _logger.Log($"Error in MainWindowViewModel constructor: {ex}");
+            StatusMessage = "❌ Critical initialization error";
         }
     }
 
@@ -204,7 +248,7 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
         }
     }
 
-    private async Task<bool> CheckInternetConnectivity()
+    private async Task<bool> CheckInternetConnectivity(CancellationToken cancellationToken)
     {
         try
         {
@@ -216,9 +260,15 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
             }
 
             _logger.Log("Checking internet connectivity...");
-            var isAvailable = await _networkStatusService.IsInternetAvailableAsync();
+            var isAvailable = await _networkStatusService.IsInternetAvailableAsync(cancellationToken)
+                .ConfigureAwait(false);
             _logger.Log($"Internet connection available: {isAvailable}");
             return isAvailable;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Internet connectivity check was cancelled");
+            throw;
         }
         catch (Exception ex)
         {
@@ -227,19 +277,38 @@ public class MainWindowViewModel : ViewModelBase, IActivatableViewModel
         }
     }
 
-    private async Task<bool> CheckMicrophoneAccess()
+    private async Task<bool> CheckMicrophoneAccess(CancellationToken cancellationToken)
     {
         try
         {
             _logger.Log("Checking microphone access...");
-            var hasAccess = await _microphonePermissionService.CheckMicrophonePermissionAsync();
+            var hasAccess = await _microphonePermissionService.CheckMicrophonePermissionAsync(cancellationToken)
+                .ConfigureAwait(false);
             _logger.Log($"Microphone access: {hasAccess}");
             return hasAccess;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log("Microphone access check was cancelled");
+            throw;
         }
         catch (Exception ex)
         {
             _logger.Log($"Error checking microphone access: {ex.Message}");
             return false;
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _initializationCts?.Cancel();
+        _initializationCts?.Dispose();
+        _initializationCts = null;
+
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

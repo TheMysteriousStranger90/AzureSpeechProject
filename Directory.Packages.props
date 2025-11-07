@@ -1,0 +1,28 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Avalonia UI Framework -->
+    <PackageVersion Include="Avalonia" Version="11.3.8" />
+    <PackageVersion Include="Avalonia.Desktop" Version="11.3.8" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.8" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.8" />
+    <PackageVersion Include="Avalonia.Diagnostics" Version="11.3.8" />
+    <PackageVersion Include="Avalonia.ReactiveUI" Version="11.3.8" />
+    <!-- Dependency Injection -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <!-- Audio Processing -->
+    <PackageVersion Include="NAudio" Version="2.2.1" />
+    <!-- Azure Cognitive Services -->
+    <PackageVersion Include="Microsoft.CognitiveServices.Speech" Version="1.47.0-beta.0.357883" />
+    <!-- Reactive Extensions -->
+    <PackageVersion Include="ReactiveUI.Fody" Version="19.5.41" />
+    <!-- System Libraries -->
+    <PackageVersion Include="System.Net.WebSockets.Client" Version="4.3.2" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
+    <!-- Code Analysis -->
+    <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.4.0.108396" />
+  </ItemGroup>
+</Project>

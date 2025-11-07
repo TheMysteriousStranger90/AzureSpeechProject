@@ -62,7 +62,7 @@ A desktop application built with Avalonia UI that provides real-time speech reco
 ### System Requirements
 
 - **Operating System**: Windows 11
-- **.NET Runtime**: .NET 8.0 or later
+- **.NET Runtime**: .NET 9.0
 - **Microphone**: Any compatible audio input device
 - **Internet Connection**: Required for Azure Speech Services
 
@@ -139,7 +139,7 @@ Higher quality settings may not improve accuracy and will use more bandwidth.
 3. **Export Results**
     - Save both original and translated versions
     - Files are automatically named with language suffixes
- 
+
 ## Troubleshooting
 
 ### Common Issues
@@ -175,7 +175,7 @@ Bohdan Harabadzhyu
 
 ## SourceForge
 
-[![Download LogAnalyzerForWindows](https://a.fsdn.com/con/app/sf-download-button)](https://sourceforge.net/projects/azurespeechproject/files/latest/download)
+[![Download AzureSpeechProject](https://a.fsdn.com/con/app/sf-download-button)](https://sourceforge.net/projects/azurespeechproject/files/latest/download)
 
 ## YouTube Review
 <details>

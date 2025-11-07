@@ -1,6 +1,5 @@
 ﻿using Avalonia;
 using Avalonia.ReactiveUI;
-using System;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Services;
 using AzureSpeechProject.ViewModels;
@@ -9,20 +8,26 @@ using FileLogger = AzureSpeechProject.Logger.FileLogger;
 
 namespace AzureSpeechProject;
 
-class Program
+internal static class Program
 {
     private static ServiceProvider? _serviceProvider;
-    
+
     [STAThread]
     public static void Main(string[] args)
     {
         var services = new ServiceCollection();
         ConfigureServices(services);
-        
         _serviceProvider = services.BuildServiceProvider();
 
-        BuildAvaloniaApp()
-            .StartWithClassicDesktopLifetime(args);
+        try
+        {
+            BuildAvaloniaApp()
+                .StartWithClassicDesktopLifetime(args);
+        }
+        finally
+        {
+            _serviceProvider?.Dispose();
+        }
     }
 
     public static AppBuilder BuildAvaloniaApp()
@@ -36,22 +41,26 @@ class Program
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // Register core services
+        // Services - Singleton
         services.AddSingleton<ILogger, FileLogger>();
         services.AddSingleton<ISettingsService, SettingsService>();
-        services.AddSingleton<ITranscriptFileService, TranscriptFileService>();
         services.AddSingleton<INetworkStatusService, NetworkStatusService>();
         services.AddSingleton<IMicrophonePermissionService, MicrophonePermissionService>();
+
+        // Services - Transient
+        services.AddTransient<ITranscriptFileService, TranscriptFileService>();
+
+        // Audio Services
         services.AddSingleton<AudioCaptureService>();
         services.AddSingleton<TranscriptionService>();
         services.AddSingleton<TranslationService>();
-        
-        // Register ViewModels
+
+        // ViewModels
         services.AddTransient<TranscriptionViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddSingleton<MainWindowViewModel>();
-        
-        // Register Views
+
+        // Views
         services.AddTransient<Views.MainWindow>();
         services.AddTransient<Views.TranscriptionView>();
         services.AddTransient<Views.SettingsView>();

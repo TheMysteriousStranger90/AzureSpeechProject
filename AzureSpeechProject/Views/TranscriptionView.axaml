@@ -5,10 +5,10 @@
              xmlns:vm="using:AzureSpeechProject.ViewModels"
              xmlns:converters="using:AzureSpeechProject.Converters"
              xmlns:rxui="using:Avalonia.ReactiveUI"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="720"
              x:Class="AzureSpeechProject.Views.TranscriptionView"
              x:DataType="vm:TranscriptionViewModel">
-    
+
     <UserControl.Resources>
         <converters:BoolToColorConverter x:Key="BoolToColorConverter" TrueColor="#E32036" FalseColor="#0078D4" />
         <converters:BoolToIconConverter x:Key="BoolToIconConverter" />
