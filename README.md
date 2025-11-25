@@ -1,6 +1,6 @@
-# AzureSpeechProject
+# AzioSpeech
 
-## Azure Speech Recognition and Translation
+## AzioSpeech Recognition and Translation
 
 A desktop application built with Avalonia UI that provides real-time speech recognition and translation using Azure Speech Services. Convert spoken words into text and translate them into multiple languages with professional-grade accuracy.
 
@@ -8,6 +8,9 @@ A desktop application built with Avalonia UI that provides real-time speech reco
 ![Image 2](Screenshots/Screen2.png)
 ![Image 3](Screenshots/Screen3.png)
 ![Image 4](Screenshots/Screen4.png)
+![Image 5](Screenshots/Screen5.png)
+![Image 6](Screenshots/Screen6.png)
+![Image 7](Screenshots/Screen7.png)
 
 ## Features
 
@@ -172,6 +175,10 @@ Bohdan Harabadzhyu
 [MIT](https://choosealicense.com/licenses/mit/)
 
 *This application is not affiliated with Microsoft Corporation. Azure and Azure Speech Services are registered trademarks of Microsoft Corporation.*
+
+## Microsoft Store
+
+[![Get it from Microsoft Store](https://get.microsoft.com/images/en-us%20dark.svg)](https://apps.microsoft.com/detail/9PFV5DG73198)
 
 ## SourceForge
 

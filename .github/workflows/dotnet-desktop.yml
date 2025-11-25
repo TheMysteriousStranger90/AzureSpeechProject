@@ -24,31 +24,31 @@ jobs:
         runs-on: windows-latest
 
         steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
+            -   name: Checkout
+                uses: actions/checkout@v4
+                with:
+                    fetch-depth: 0
 
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: ${{ env.DOTNET_VERSION }}
+            -   name: Setup .NET
+                uses: actions/setup-dotnet@v4
+                with:
+                    dotnet-version: ${{ env.DOTNET_VERSION }}
 
-            - name: Restore dependencies
-              run: dotnet restore ${{ env.SOLUTION_NAME }}
+            -   name: Restore dependencies
+                run: dotnet restore ${{ env.SOLUTION_NAME }}
 
-            - name: Fix code formatting
-              run: dotnet format ${{ env.SOLUTION_NAME }} --verbosity diagnostic
+            -   name: Fix code formatting
+                run: dotnet format ${{ env.SOLUTION_NAME }} --verbosity diagnostic
 
-            - name: Check code formatting
-              run: dotnet format ${{ env.SOLUTION_NAME }} --verify-no-changes --verbosity diagnostic
+            -   name: Check code formatting
+                run: dotnet format ${{ env.SOLUTION_NAME }} --verify-no-changes --verbosity diagnostic
 
-            - name: Run Code Analysis
-              run: |
-                  dotnet build ${{ env.SOLUTION_NAME }} `
-                    --configuration Release `
-                    --no-restore `
-                    /p:TreatWarningsAsErrors=true
+            -   name: Run Code Analysis
+                run: |
+                    dotnet build ${{ env.SOLUTION_NAME }} `
+                      --configuration Release `
+                      --no-restore `
+                      /p:TreatWarningsAsErrors=true
 
     # ============================================
     # Job 2: Build & Test
@@ -61,62 +61,62 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                configuration: [Debug, Release]
+                configuration: [ Debug, Release ]
 
         steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
+            -   name: Checkout
+                uses: actions/checkout@v4
+                with:
+                    fetch-depth: 0
 
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: ${{ env.DOTNET_VERSION }}
+            -   name: Setup .NET
+                uses: actions/setup-dotnet@v4
+                with:
+                    dotnet-version: ${{ env.DOTNET_VERSION }}
 
-            - name: Cache NuGet packages
-              uses: actions/cache@v4
-              with:
-                  path: ~/.nuget/packages
-                  key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props') }}
-                  restore-keys: |
-                      ${{ runner.os }}-nuget-
+            -   name: Cache NuGet packages
+                uses: actions/cache@v4
+                with:
+                    path: ~/.nuget/packages
+                    key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props') }}
+                    restore-keys: |
+                        ${{ runner.os }}-nuget-
 
-            - name: Restore dependencies
-              run: dotnet restore ${{ env.SOLUTION_NAME }}
+            -   name: Restore dependencies
+                run: dotnet restore ${{ env.SOLUTION_NAME }}
 
-            - name: Build
-              run: |
-                  dotnet build ${{ env.SOLUTION_NAME }} `
-                    --configuration ${{ matrix.configuration }} `
-                    --no-restore `
-                    /p:ContinuousIntegrationBuild=true
+            -   name: Build
+                run: |
+                    dotnet build ${{ env.SOLUTION_NAME }} `
+                      --configuration ${{ matrix.configuration }} `
+                      --no-restore `
+                      /p:ContinuousIntegrationBuild=true
 
-            - name: Run Unit Tests
-              if: matrix.configuration == 'Release'
-              run: |
-                  dotnet test ${{ env.SOLUTION_NAME }} `
-                    --configuration ${{ matrix.configuration }} `
-                    --no-build `
-                    --verbosity normal `
-                    --logger "trx;LogFileName=test-results.trx" `
-                    --results-directory ./TestResults
-              continue-on-error: true
+            -   name: Run Unit Tests
+                if: matrix.configuration == 'Release'
+                run: |
+                    dotnet test ${{ env.SOLUTION_NAME }} `
+                      --configuration ${{ matrix.configuration }} `
+                      --no-build `
+                      --verbosity normal `
+                      --logger "trx;LogFileName=test-results.trx" `
+                      --results-directory ./TestResults
+                continue-on-error: true
 
-            - name: Upload Test Results
-              if: always() && matrix.configuration == 'Release'
-              uses: actions/upload-artifact@v4
-              with:
-                  name: test-results
-                  path: TestResults/**/*.trx
-                  retention-days: 7
+            -   name: Upload Test Results
+                if: always() && matrix.configuration == 'Release'
+                uses: actions/upload-artifact@v4
+                with:
+                    name: test-results
+                    path: TestResults/**/*.trx
+                    retention-days: 7
 
-            - name: Upload Build Artifacts (${{ matrix.configuration }})
-              uses: actions/upload-artifact@v4
-              with:
-                  name: Build-Artifacts-${{ matrix.configuration }}
-                  path: AzureSpeechProject/bin/${{ matrix.configuration }}
-                  retention-days: 7
+            -   name: Upload Build Artifacts (${{ matrix.configuration }})
+                uses: actions/upload-artifact@v4
+                with:
+                    name: Build-Artifacts-${{ matrix.configuration }}
+                    path: AzureSpeechProject/bin/${{ matrix.configuration }}
+                    retention-days: 7
 
     # ============================================
     # Job 3: Publish Self-Contained (win-x64) - Hybrid Approach
@@ -128,116 +128,117 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
         steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+            -   name: Checkout
+                uses: actions/checkout@v4
 
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: ${{ env.DOTNET_VERSION }}
+            -   name: Setup .NET
+                uses: actions/setup-dotnet@v4
+                with:
+                    dotnet-version: ${{ env.DOTNET_VERSION }}
 
-            - name: Restore dependencies
-              run: dotnet restore ${{ env.SOLUTION_NAME }}
+            -   name: Restore dependencies
+                run: dotnet restore ${{ env.SOLUTION_NAME }}
 
-            - name: Get version from tag or use default
-              id: version
-              run: |
-                  if ("${{ github.ref }}" -match "refs/tags/v(.*)") {
-                    $version = $matches[1]
-                  } else {
-                    $version = "1.2.0-dev.${{ github.run_number }}"
-                  }
-                  echo "version=$version" >> $env:GITHUB_OUTPUT
-                  echo "Version: $version"
+            -   name: Get version from tag or use default
+                id: version
+                run: |
+                    if ("${{ github.ref }}" -match "refs/tags/v(.*)") {
+                      $version = $matches[1]
+                    } else {
+                      $version = "1.2.0-dev.${{ github.run_number }}"
+                    }
+                    echo "version=$version" >> $env:GITHUB_OUTPUT
+                    echo "Version: $version"
 
-            - name: Publish Self-Contained (win-x64) - Hybrid with ReadyToRun
-              run: |
-                  dotnet publish ${{ env.PROJECT_PATH }} `
-                    --configuration Release `
-                    --runtime win-x64 `
-                    --self-contained true `
-                    --output ./publish/win-x64 `
-                    /p:PublishSingleFile=true `
-                    /p:PublishTrimmed=false `
-                    /p:PublishReadyToRun=true `
-                    /p:PublishReadyToRunShowWarnings=true `
-                    /p:PublishReadyToRunComposite=true `
-                    /p:EnableCompressionInSingleFile=true `
-                    /p:IncludeNativeLibrariesForSelfExtract=true `
-                    /p:IncludeAllContentForSelfExtract=true `
-                    /p:DebugType=embedded `
-                    /p:DebugSymbols=true `
-                    /p:Version=${{ steps.version.outputs.version }}
+            -   name: Publish Self-Contained (win-x64) - Hybrid with ReadyToRun
+                run: |
+                    dotnet publish ${{ env.PROJECT_PATH }} `
+                      --configuration Release `
+                      --runtime win-x64 `
+                      --self-contained true `
+                      --output ./publish/win-x64 `
+                      /p:PublishSingleFile=true `
+                      /p:PublishTrimmed=false `
+                      /p:PublishReadyToRun=true `
+                      /p:PublishReadyToRunShowWarnings=true `
+                      /p:PublishReadyToRunComposite=true `
+                      /p:EnableCompressionInSingleFile=true `
+                      /p:IncludeNativeLibrariesForSelfExtract=true `
+                      /p:IncludeAllContentForSelfExtract=true `
+                      /p:DebugType=embedded `
+                      /p:DebugSymbols=true `
+                      /p:AssemblyName=AzioSpeech `
+                      /p:Version=${{ steps.version.outputs.version }}
 
-            - name: List published files
-              run: Get-ChildItem -Path ./publish/win-x64 -Recurse
+            -   name: List published files
+                run: Get-ChildItem -Path ./publish/win-x64 -Recurse
 
-            - name: Get file size
-              id: filesize
-              run: |
-                  $exePath = "./publish/win-x64/AzureSpeechProject.exe"
-                  if (Test-Path $exePath) {
-                    $sizeBytes = (Get-Item $exePath).Length
-                    $sizeMB = [math]::Round($sizeBytes / 1MB, 2)
-                    echo "size_mb=$sizeMB" >> $env:GITHUB_OUTPUT
-                    echo "Executable size: $sizeMB MB"
-                  } else {
-                    echo "size_mb=Unknown" >> $env:GITHUB_OUTPUT
-                  }
+            -   name: Get file size
+                id: filesize
+                run: |
+                    $exePath = "./publish/win-x64/AzioSpeech.exe"
+                    if (Test-Path $exePath) {
+                      $sizeBytes = (Get-Item $exePath).Length
+                      $sizeMB = [math]::Round($sizeBytes / 1MB, 2)
+                      echo "size_mb=$sizeMB" >> $env:GITHUB_OUTPUT
+                      echo "Executable size: $sizeMB MB"
+                    } else {
+                      echo "size_mb=Unknown" >> $env:GITHUB_OUTPUT
+                    }
 
-            - name: Create ZIP archive
-              run: |
-                  Compress-Archive -Path ./publish/win-x64/* `
-                    -DestinationPath ./${{ env.ARTIFACT_NAME }}-v${{ steps.version.outputs.version }}-win-x64.zip `
-                    -CompressionLevel Optimal
+            -   name: Create ZIP archive
+                run: |
+                    Compress-Archive -Path ./publish/win-x64/* `
+                      -DestinationPath ./${{ env.ARTIFACT_NAME }}-v${{ steps.version.outputs.version }}-win-x64.zip `
+                      -CompressionLevel Optimal
 
-            - name: Calculate ZIP hash
-              id: hash
-              run: |
-                  $zipPath = "./${{ env.ARTIFACT_NAME }}-v${{ steps.version.outputs.version }}-win-x64.zip"
-                  $hash = Get-FileHash -Path $zipPath -Algorithm SHA256
-                  $zipSizeBytes = (Get-Item $zipPath).Length
-                  $zipSizeMB = [math]::Round($zipSizeBytes / 1MB, 2)
+            -   name: Calculate ZIP hash
+                id: hash
+                run: |
+                    $zipPath = "./${{ env.ARTIFACT_NAME }}-v${{ steps.version.outputs.version }}-win-x64.zip"
+                    $hash = Get-FileHash -Path $zipPath -Algorithm SHA256
+                    $zipSizeBytes = (Get-Item $zipPath).Length
+                    $zipSizeMB = [math]::Round($zipSizeBytes / 1MB, 2)
 
-                  echo "sha256=$($hash.Hash)" >> $env:GITHUB_OUTPUT
-                  echo "zip_size_mb=$zipSizeMB" >> $env:GITHUB_OUTPUT
-                  echo "SHA256: $($hash.Hash)"
-                  echo "ZIP size: $zipSizeMB MB"
+                    echo "sha256=$($hash.Hash)" >> $env:GITHUB_OUTPUT
+                    echo "zip_size_mb=$zipSizeMB" >> $env:GITHUB_OUTPUT
+                    echo "SHA256: $($hash.Hash)"
+                    echo "ZIP size: $zipSizeMB MB"
 
-            - name: Upload Build Artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: ${{ env.ARTIFACT_NAME }}-win-x64
-                  path: ${{ env.ARTIFACT_NAME }}-v${{ steps.version.outputs.version }}-win-x64.zip
-                  retention-days: 90
-                  compression-level: 0
+            -   name: Upload Build Artifact
+                uses: actions/upload-artifact@v4
+                with:
+                    name: ${{ env.ARTIFACT_NAME }}-win-x64
+                    path: ${{ env.ARTIFACT_NAME }}-v${{ steps.version.outputs.version }}-win-x64.zip
+                    retention-days: 90
+                    compression-level: 0
 
-            - name: Create build info
-              run: |
-                  $buildInfo = @"
-                  Build Information
-                  =================
-                  Version: ${{ steps.version.outputs.version }}
-                  Configuration: Release (Hybrid - ReadyToRun without Trimming)
-                  Runtime: win-x64 (self-contained)
-                  Executable Size: ${{ steps.filesize.outputs.size_mb }} MB
-                  ZIP Size: ${{ steps.hash.outputs.zip_size_mb }} MB
-                  SHA256: ${{ steps.hash.outputs.sha256 }}
+            -   name: Create build info
+                run: |
+                    $buildInfo = @"
+                    Build Information
+                    =================
+                    Version: ${{ steps.version.outputs.version }}
+                    Configuration: Release (Hybrid - ReadyToRun without Trimming)
+                    Runtime: win-x64 (self-contained)
+                    Executable Size: ${{ steps.filesize.outputs.size_mb }} MB
+                    ZIP Size: ${{ steps.hash.outputs.zip_size_mb }} MB
+                    SHA256: ${{ steps.hash.outputs.sha256 }}
 
-                  Features:
-                  - Single-file executable
-                  - No .NET Runtime required
-                  - ReadyToRun compilation for faster startup
-                  - Full compatibility (no trimming issues)
-                  - Compressed native libraries
-                  - Includes Azure Speech SDK native dependencies
+                    Features:
+                    - Single-file executable
+                    - No .NET Runtime required
+                    - ReadyToRun compilation for faster startup
+                    - Full compatibility (no trimming issues)
+                    - Compressed native libraries
+                    - Includes Azure Speech SDK native dependencies
 
-                  Build Date: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC")
-                  Commit: ${{ github.sha }}
-                  "@
+                    Build Date: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC")
+                    Commit: ${{ github.sha }}
+                    "@
 
-                  $buildInfo | Out-File -FilePath ./publish/win-x64/BUILD_INFO.txt -Encoding utf8
-                  Write-Output $buildInfo
+                    $buildInfo | Out-File -FilePath ./publish/win-x64/BUILD_INFO.txt -Encoding utf8
+                    Write-Output $buildInfo
 
     # ============================================
     # Job 4: Create GitHub Release (on tags)
@@ -251,108 +252,108 @@ jobs:
             contents: write
 
         steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+            -   name: Checkout
+                uses: actions/checkout@v4
 
-            - name: Download artifacts
-              uses: actions/download-artifact@v4
-              with:
-                  name: ${{ env.ARTIFACT_NAME }}-win-x64
-                  path: ./artifacts
+            -   name: Download artifacts
+                uses: actions/download-artifact@v4
+                with:
+                    name: ${{ env.ARTIFACT_NAME }}-win-x64
+                    path: ./artifacts
 
-            - name: Get version
-              id: version
-              run: |
-                  $version = "${{ github.ref_name }}"
-                  echo "version=$version" >> $env:GITHUB_OUTPUT
+            -   name: Get version
+                id: version
+                run: |
+                    $version = "${{ github.ref_name }}"
+                    echo "version=$version" >> $env:GITHUB_OUTPUT
 
-            - name: Create Release Notes
-              run: |
-                  $version = "${{ steps.version.outputs.version }}"
-                  $notes = @"
-                  # Azure Speech Recognition and Translation $version
+            -   name: Create Release Notes
+                run: |
+                    $version = "${{ steps.version.outputs.version }}"
+                    $notes = @"
+                    # Azure Speech Recognition and Translation $version
 
-                  ## 📦 Downloads
+                    ## 📦 Downloads
 
-                  **Windows x64 (64-bit Intel/AMD)**
-                  - Self-contained build (no .NET Runtime required)
-                  - Single executable file with ReadyToRun compilation
-                  - Optimized for fast startup without trimming issues
+                    **Windows x64 (64-bit Intel/AMD)**
+                    - Self-contained build (no .NET Runtime required)
+                    - Single executable file with ReadyToRun compilation
+                    - Optimized for fast startup without trimming issues
 
-                  ## 🚀 Installation
+                    ## 🚀 Installation
 
-                  1. Download the ZIP file below
-                  2. Extract to any folder
-                  3. Run ``AzureSpeechProject.exe``
-                  4. Configure your Azure Speech Services credentials in Settings
-                  5. (Optional) Grant microphone permissions in Windows Privacy Settings
+                    1. Download the ZIP file below
+                    2. Extract to any folder
+                    3. Run ``AzureSpeechProject.exe``
+                    4. Configure your Azure Speech Services credentials in Settings
+                    5. (Optional) Grant microphone permissions in Windows Privacy Settings
 
-                  ## ✨ Features
+                    ## ✨ Features
 
-                  - **Real-time Speech Recognition**: Convert speech to text using Azure Speech Services
-                  - **Multi-language Translation**: Translate recognized speech into multiple languages
-                  - **Modern UI**: Built with Avalonia UI
-                  - **Secure Credentials**: Encrypted storage for Azure API keys
+                    - **Real-time Speech Recognition**: Convert speech to text using Azure Speech Services
+                    - **Multi-language Translation**: Translate recognized speech into multiple languages
+                    - **Modern UI**: Built with Avalonia UI
+                    - **Secure Credentials**: Encrypted storage for Azure API keys
 
-                  ## 📋 Requirements
+                    ## 📋 Requirements
 
-                  - **OS**: Windows 11
-                  - **Architecture**: x64 (64-bit)
-                  - **.NET Runtime**: Not required (self-contained)
-                  - **Disk Space**: ~150 MB
-                  - **RAM**: 512 MB minimum, 1 GB recommended
-                  - **Microphone**: Required for speech recognition
-                  - **Azure Account**: Azure Speech Services subscription (required for operation)
+                    - **OS**: Windows 11
+                    - **Architecture**: x64 (64-bit)
+                    - **.NET Runtime**: Not required (self-contained)
+                    - **Disk Space**: ~150 MB
+                    - **RAM**: 512 MB minimum, 1 GB recommended
+                    - **Microphone**: Required for speech recognition
+                    - **Azure Account**: Azure Speech Services subscription (required for operation)
 
-                  ## 🔑 Azure Setup
+                    ## 🔑 Azure Setup
 
-                  Before using this application, you need:
-                  1. An active Azure subscription
-                  2. Azure Speech Services resource created
-                  3. API key and region from Azure Portal
+                    Before using this application, you need:
+                    1. An active Azure subscription
+                    2. Azure Speech Services resource created
+                    3. API key and region from Azure Portal
 
-                  Visit [Azure Speech Services](https://azure.microsoft.com/services/cognitive-services/speech-services/) for setup instructions.
+                    Visit [Azure Speech Services](https://azure.microsoft.com/services/cognitive-services/speech-services/) for setup instructions.
 
-                  ## ⚡ Performance
+                    ## ⚡ Performance
 
-                  This build uses **Hybrid approach**:
-                  - ✅ ReadyToRun compilation for 30-40% faster startup
-                  - ✅ No trimming = full compatibility with Azure SDK
-                  - ✅ Optimized garbage collection (Server GC)
-                  - ✅ Tiered compilation for runtime optimization
-                  - ✅ Native library embedding for Azure Speech SDK
+                    This build uses **Hybrid approach**:
+                    - ✅ ReadyToRun compilation for 30-40% faster startup
+                    - ✅ No trimming = full compatibility with Azure SDK
+                    - ✅ Optimized garbage collection (Server GC)
+                    - ✅ Tiered compilation for runtime optimization
+                    - ✅ Native library embedding for Azure Speech SDK
 
-                  ## 🔒 Security
+                    ## 🔒 Security
 
-                  - **SHA256 Checksum**: Available in artifact details
-                  - Verify the hash after download to ensure file integrity
-                  - API keys stored using Windows Data Protection API (DPAPI)
+                    - **SHA256 Checksum**: Available in artifact details
+                    - Verify the hash after download to ensure file integrity
+                    - API keys stored using Windows Data Protection API (DPAPI)
 
-                  ## 🐛 Known Issues & Troubleshooting
+                    ## 🐛 Known Issues & Troubleshooting
 
-                  - Ensure microphone permissions are granted in Windows Settings
-                  - Verify Azure Speech Services credentials are correct
-                  - Check internet connectivity for Azure API access
+                    - Ensure microphone permissions are granted in Windows Settings
+                    - Verify Azure Speech Services credentials are correct
+                    - Check internet connectivity for Azure API access
 
-                  ---
+                    ---
 
-                  **Full Changelog**: https://github.com/${{ github.repository }}/compare/v1.1.0...$version
-                  **Documentation**: https://github.com/${{ github.repository }}/blob/master/README.md
-                  "@
+                    **Full Changelog**: https://github.com/${{ github.repository }}/compare/v1.1.0...$version
+                    **Documentation**: https://github.com/${{ github.repository }}/blob/master/README.md
+                    "@
 
-                  $notes | Out-File -FilePath release_notes.md -Encoding utf8
+                    $notes | Out-File -FilePath release_notes.md -Encoding utf8
 
-            - name: Create GitHub Release
-              uses: softprops/action-gh-release@v2
-              with:
-                  files: ./artifacts/*.zip
-                  body_path: release_notes.md
-                  draft: false
-                  prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
-                  generate_release_notes: true
-                  make_latest: true
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            -   name: Create GitHub Release
+                uses: softprops/action-gh-release@v2
+                with:
+                    files: ./artifacts/*.zip
+                    body_path: release_notes.md
+                    draft: false
+                    prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
+                    generate_release_notes: true
+                    make_latest: true
+                env:
+                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     # ============================================
     # Job 5: Security Scanning
@@ -364,29 +365,29 @@ jobs:
         if: github.event_name == 'push'
 
         steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+            -   name: Checkout
+                uses: actions/checkout@v4
 
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: ${{ env.DOTNET_VERSION }}
+            -   name: Setup .NET
+                uses: actions/setup-dotnet@v4
+                with:
+                    dotnet-version: ${{ env.DOTNET_VERSION }}
 
-            - name: Restore dependencies
-              run: dotnet restore ${{ env.SOLUTION_NAME }}
+            -   name: Restore dependencies
+                run: dotnet restore ${{ env.SOLUTION_NAME }}
 
-            - name: Check for vulnerable packages
-              run: |
-                  $output = dotnet list ${{ env.SOLUTION_NAME }} package --vulnerable --include-transitive 2>&1
-                  Write-Output $output
+            -   name: Check for vulnerable packages
+                run: |
+                    $output = dotnet list ${{ env.SOLUTION_NAME }} package --vulnerable --include-transitive 2>&1
+                    Write-Output $output
 
-                  if ($output -match "has the following vulnerable packages") {
-                    Write-Error "❌ Vulnerable packages detected!"
-                    exit 1
-                  } else {
-                    Write-Output "✅ No vulnerable packages found"
-                  }
-              continue-on-error: true
+                    if ($output -match "has the following vulnerable packages") {
+                      Write-Error "❌ Vulnerable packages detected!"
+                      exit 1
+                    } else {
+                      Write-Output "✅ No vulnerable packages found"
+                    }
+                continue-on-error: true
 
     # ============================================
     # Job 6: Dependency Review (PRs only)
@@ -400,11 +401,11 @@ jobs:
             pull-requests: write
 
         steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+            -   name: Checkout
+                uses: actions/checkout@v4
 
-            - name: Dependency Review
-              uses: actions/dependency-review-action@v4
-              with:
-                  fail-on-severity: moderate
-                  deny-licenses: GPL-2.0, GPL-3.0
+            -   name: Dependency Review
+                uses: actions/dependency-review-action@v4
+                with:
+                    fail-on-severity: moderate
+                    deny-licenses: GPL-2.0, GPL-3.0

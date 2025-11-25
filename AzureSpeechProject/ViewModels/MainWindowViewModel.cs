@@ -47,94 +47,65 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel,
                     _initializationCts = new CancellationTokenSource();
                     var token = _initializationCts.Token;
 
-                    Observable.FromAsync(() => CheckMicrophoneAccess(token))
-                        .ObserveOn(RxApp.MainThreadScheduler)
-                        .Subscribe(
-                            isAvailable =>
-                            {
-                                IsMicrophoneAvailable = isAvailable;
-                                _logger.Log($"Initial microphone access check: {isAvailable}");
-
-                                if (!isAvailable)
-                                {
-                                    StatusMessage =
-                                        "⚠️ Microphone access denied. Please grant microphone permissions in Windows Settings.";
-                                }
-                            },
-                            ex =>
-                            {
-                                if (ex is OperationCanceledException)
-                                {
-                                    _logger.Log("Microphone check was cancelled");
-                                }
-                                else
-                                {
-                                    _logger.Log($"Error checking microphone access: {ex.Message}");
-                                }
-                            }
-                        )
-                        .DisposeWith(disposables);
-
-                    Observable.FromAsync(() => CheckInternetConnectivity(token))
-                        .ObserveOn(RxApp.MainThreadScheduler)
-                        .Subscribe(
-                            isAvailable =>
-                            {
-                                IsInternetAvailable = isAvailable;
-                                _logger.Log($"Initial internet connectivity check: {isAvailable}");
-
-                                if (!isAvailable && IsMicrophoneAvailable)
-                                {
-                                    StatusMessage =
-                                        "No internet connection detected. Azure Speech Services will not work.";
-                                }
-                                else if (!isAvailable && !IsMicrophoneAvailable)
-                                {
-                                    StatusMessage =
-                                        "No internet connection and microphone access denied. Check both.";
-                                }
-                            },
-                            ex =>
-                            {
-                                if (ex is OperationCanceledException)
-                                {
-                                    _logger.Log("Internet check was cancelled");
-                                }
-                                else
-                                {
-                                    _logger.Log($"Error checking internet connectivity: {ex.Message}");
-                                }
-                            }
-                        )
-                        .DisposeWith(disposables);
-
                     Observable.FromAsync(async () =>
                         {
                             try
                             {
                                 StatusMessage = "Loading settings...";
                                 await SettingsViewModel.LoadSettingsAsync(token).ConfigureAwait(false);
-                                _logger.Log("Settings preloaded in MainWindowViewModel");
-                                StatusMessage = "Settings loaded successfully";
-
-                                await Task.Delay(1000, token).ConfigureAwait(false);
-
-                                UpdateStatusMessage();
+                                _logger.Log("Settings preloaded in MainWindowViewModel FIRST");
+                                return true;
                             }
                             catch (OperationCanceledException)
                             {
                                 _logger.Log("Settings loading was cancelled");
+                                return false;
                             }
                         })
                         .ObserveOn(RxApp.MainThreadScheduler)
+                        .SelectMany(settingsLoaded =>
+                        {
+                            if (!settingsLoaded)
+                            {
+                                StatusMessage = "Error loading settings";
+                                return Observable.Return(false);
+                            }
+
+                            return Observable.CombineLatest(
+                                Observable.FromAsync(() => CheckMicrophoneAccess(token))
+                                    .Catch<bool, Exception>(ex =>
+                                    {
+                                        _logger.Log($"Error checking microphone: {ex.Message}");
+                                        return Observable.Return(false);
+                                    }),
+                                Observable.FromAsync(() => CheckInternetConnectivity(token))
+                                    .Catch<bool, Exception>(ex =>
+                                    {
+                                        _logger.Log($"Error checking internet: {ex.Message}");
+                                        return Observable.Return(false);
+                                    }),
+                                (mic, internet) => new { Mic = mic, Internet = internet })
+                            .Select(result =>
+                            {
+                                IsMicrophoneAvailable = result.Mic;
+                                IsInternetAvailable = result.Internet;
+                                _logger.Log($"Checks complete - Mic: {result.Mic}, Internet: {result.Internet}");
+                                return true;
+                            });
+                        })
+                        .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(
-                            _ => { },
+                            _ =>
+                            {
+                                UpdateStatusMessage();
+                                _logger.Log($"Initial status set to: {StatusMessage}");
+                            },
                             ex =>
                             {
                                 if (ex is not OperationCanceledException)
                                 {
-                                    _logger.Log($"Error preloading settings in MainWindowViewModel: {ex.Message}");
-                                    StatusMessage = "❌ Error loading settings";
+                                    _logger.Log($"Error during initialization: {ex.Message}");
+                                    StatusMessage = "Error during initialization";
                                 }
                             })
                         .DisposeWith(disposables);
@@ -165,22 +136,13 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel,
                         })
                         .DisposeWith(disposables);
 
-                    Observable.CombineLatest(
-                            SettingsViewModel.WhenAnyValue(x => x.Region),
-                            SettingsViewModel.WhenAnyValue(x => x.Key),
-                            (region, key) => new { Region = region, Key = key })
+                    SettingsViewModel.WhenAnyValue(x => x.AreCredentialsSaved)
                         .Skip(1)
                         .ObserveOn(RxApp.MainThreadScheduler)
-                        .Subscribe(settings =>
+                        .Subscribe(saved =>
                         {
-                            if (string.IsNullOrWhiteSpace(settings.Region) || string.IsNullOrWhiteSpace(settings.Key))
-                            {
-                                if (!TranscriptionViewModel.IsRecording)
-                                {
-                                    StatusMessage = "Azure credentials not configured - Check Settings tab";
-                                }
-                            }
-                            else if (!TranscriptionViewModel.IsRecording)
+                            _logger.Log($"Credentials saved state changed: {saved}");
+                            if (!TranscriptionViewModel.IsRecording)
                             {
                                 UpdateStatusMessage();
                             }
@@ -199,19 +161,19 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel,
                 catch (Exception ex)
                 {
                     _logger.Log($"Error during MainWindowViewModel activation: {ex.Message}");
-                    StatusMessage = "❌ Error during initialization";
+                    StatusMessage = "Error during initialization";
                 }
             });
         }
         catch (ArgumentNullException ex)
         {
             _logger.Log($"Argument null in MainWindowViewModel constructor: {ex}");
-            StatusMessage = "❌ Critical initialization error";
+            StatusMessage = "Critical initialization error";
         }
         catch (Exception ex)
         {
             _logger.Log($"Error in MainWindowViewModel constructor: {ex}");
-            StatusMessage = "❌ Critical initialization error";
+            StatusMessage = "Critical initialization error";
         }
     }
 
@@ -222,30 +184,26 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel,
 
         if (!IsInternetAvailable && !IsMicrophoneAvailable)
         {
-            StatusMessage = "No internet connection and microphone access denied. Check both.";
+            StatusMessage = "No internet connection and microphone access denied";
         }
         else if (!IsInternetAvailable)
         {
-            StatusMessage = "No internet connection detected. Azure Speech Services will not work.";
+            StatusMessage = "No internet connection detected";
         }
         else if (!IsMicrophoneAvailable)
         {
-            StatusMessage = "Microphone access denied. Please grant microphone permissions in Windows Settings.";
+            StatusMessage = "Microphone access denied";
+        }
+        else if (!SettingsViewModel.AreCredentialsSaved)
+        {
+            StatusMessage = "Azure credentials not configured or not saved - Check Settings tab";
         }
         else
         {
-            var hasAzureCredentials = !string.IsNullOrWhiteSpace(SettingsViewModel.Region) &&
-                                      !string.IsNullOrWhiteSpace(SettingsViewModel.Key);
-
-            if (!hasAzureCredentials)
-            {
-                StatusMessage = "Azure credentials not configured - Check Settings tab";
-            }
-            else
-            {
-                StatusMessage = "Ready to record";
-            }
+            StatusMessage = "Ready to record";
         }
+
+        _logger.Log($"Status message updated to: {StatusMessage}");
     }
 
     private async Task<bool> CheckInternetConnectivity(CancellationToken cancellationToken)
