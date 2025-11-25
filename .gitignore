@@ -1,8 +1,63 @@
-bin/
-obj/
-/packages/
+## --- Build Results ---
+[Bb]in/
+[Oo]bj/
+
+## --- IDEs & Editors ---
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userprefs
+
+# JetBrains Rider / ReSharper
+.idea/
+*.sln.iml
+*.csproj.iml
+/_ReSharper*/
 riderModule.iml
-/_ReSharper.Caches/
 
+# VS Code
+.vscode/
 
-.idea
+## --- Dependencies ---
+/packages/
+
+## --- MSIX Packaging & Publishing (From CreateMSIX.ps1) ---
+publish/
+
+package/
+
+output/
+
+## --- Security & Certificates# filepath: .gitignore
+## --- Build Results ---
+[Bb]in/
+[Oo]bj/
+
+## --- IDEs & Editors ---
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userprefs
+
+# JetBrains Rider / ReSharper
+.idea/
+*.sln.iml
+*.csproj.iml
+/_ReSharper*/
+riderModule.iml
+
+# VS Code
+.vscode/
+
+## --- Dependencies ---
+/packages/
+
+## --- MSIX Packaging & Publishing (From CreateMSIX.ps1) ---
+publish/
+
+package/
+
+output/
+

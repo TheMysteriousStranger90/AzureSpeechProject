@@ -1,6 +1,6 @@
 ﻿<!--
     Author: Bohdan Harabadzhyu
-    Description: Azure Speech Recognition and Translation application
+    Description: AzioSpeech Recognition and Translation application
 -->
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
@@ -20,14 +20,15 @@
         <ApplicationIcon>./Assets/icon.ico</ApplicationIcon>
 
         <!-- Version Info -->
-        <AssemblyVersion>1.2.0.0</AssemblyVersion>
-        <FileVersion>1.2.0.0</FileVersion>
-        <InformationalVersion>1.2.0</InformationalVersion>
+        <AssemblyName>AzioSpeech</AssemblyName>
+        <AssemblyVersion>1.2.1.0</AssemblyVersion>
+        <FileVersion>1.2.1.0</FileVersion>
+        <InformationalVersion>1.2.1</InformationalVersion>
 
         <!-- Product Info -->
         <Authors>Bohdan Harabadzhyu</Authors>
         <Company>Bohdan Harabadzhyu</Company>
-        <Product>Azure Speech Recognition and Translation</Product>
+        <Product>AzioSpeech Recognition and Translation</Product>
         <Description>A desktop application built with Avalonia UI that provides real-time speech recognition and translation using Azure Speech Services. Convert spoken words into text and translate them into multiple languages with professional-grade accuracy.</Description>
         <Copyright>Copyright © 2025 Bohdan Harabadzhyu</Copyright>
 
@@ -85,18 +86,18 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" />
-        <PackageReference Include="Avalonia.Desktop" />
-        <PackageReference Include="Avalonia.Themes.Fluent" />
-        <PackageReference Include="Avalonia.Fonts.Inter" />
-        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" />
-        <PackageReference Include="Avalonia.ReactiveUI" />
-        <PackageReference Include="Microsoft.CognitiveServices.Speech" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-        <PackageReference Include="NAudio" />
-        <PackageReference Include="ReactiveUI.Fody" />
-        <PackageReference Include="System.Net.WebSockets.Client" />
-        <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+        <PackageReference Include="Avalonia"/>
+        <PackageReference Include="Avalonia.Desktop"/>
+        <PackageReference Include="Avalonia.Themes.Fluent"/>
+        <PackageReference Include="Avalonia.Fonts.Inter"/>
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics"/>
+        <PackageReference Include="Avalonia.ReactiveUI"/>
+        <PackageReference Include="Microsoft.CognitiveServices.Speech"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+        <PackageReference Include="NAudio"/>
+        <PackageReference Include="ReactiveUI.Fody"/>
+        <PackageReference Include="System.Net.WebSockets.Client"/>
+        <PackageReference Include="System.Security.Cryptography.ProtectedData"/>
         <PackageReference Include="SonarAnalyzer.CSharp">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

@@ -16,6 +16,7 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
     private readonly ISettingsService _settingsService;
     private CancellationTokenSource? _operationCts;
     private bool _disposed;
+    private bool _isLoadingSettings;
 
     public ViewModelActivator Activator { get; } = new ViewModelActivator();
 
@@ -40,6 +41,8 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
     public IReadOnlyList<int> Channels { get; } = new List<int> { 1, 2 };
 
     [Reactive] public string OutputDirectory { get; set; } = string.Empty;
+
+    [Reactive] public bool AreCredentialsSaved { get; private set; }
 
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> ResetCommand { get; }
@@ -75,8 +78,21 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
             Observable.FromAsync(() => LoadSettingsAsync(_operationCts.Token))
                 .ObserveOn(RxApp.MainThreadScheduler)
                 .Subscribe(
-                    _ => _logger.Log("Settings loaded on activation"),
+                    _ => { _logger.Log("Settings loaded on activation"); },
                     ex => _logger.Log($"Error loading settings on activation: {ex.Message}"))
+                .DisposeWith(disposables);
+
+            Observable.CombineLatest(
+                    this.WhenAnyValue(x => x.Region),
+                    this.WhenAnyValue(x => x.Key),
+                    (region, key) => new { Region = region, Key = key })
+                .Skip(1)
+                .Where(_ => !_isLoadingSettings)
+                .Subscribe(_ =>
+                {
+                    UpdateCredentialsSavedState();
+                    _logger.Log($"Settings changed - AreCredentialsSaved: {AreCredentialsSaved}");
+                })
                 .DisposeWith(disposables);
 
             Disposable.Create(() =>
@@ -88,8 +104,35 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
         });
     }
 
+    private void UpdateCredentialsSavedState()
+    {
+        var hasCredentials = !string.IsNullOrWhiteSpace(Region) && !string.IsNullOrWhiteSpace(Key);
+
+        if (!hasCredentials)
+        {
+            AreCredentialsSaved = false;
+            _logger.Log("Credentials not configured");
+            return;
+        }
+
+        try
+        {
+            var savedSettings = _settingsService.LoadSettingsAsync(CancellationToken.None).GetAwaiter().GetResult();
+            var credentialsMatch = savedSettings.Region == Region && savedSettings.Key == Key;
+            AreCredentialsSaved = credentialsMatch;
+            _logger.Log($"Credentials match saved state: {credentialsMatch}");
+        }
+        catch (Exception ex)
+        {
+            _logger.Log($"Error checking saved credentials: {ex.Message}");
+            AreCredentialsSaved = false;
+        }
+    }
+
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
+        _isLoadingSettings = true;
+
         try
         {
             var settings = await _settingsService.LoadSettingsAsync(cancellationToken).ConfigureAwait(false);
@@ -121,6 +164,10 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
             }
 
             _logger.Log($"Final ViewModel OutputDirectory: '{OutputDirectory}'");
+
+            var hasCredentials = !string.IsNullOrWhiteSpace(Region) && !string.IsNullOrWhiteSpace(Key);
+            AreCredentialsSaved = hasCredentials;
+            _logger.Log($"Credentials loaded - AreCredentialsSaved: {AreCredentialsSaved}");
         }
         catch (OperationCanceledException)
         {
@@ -129,7 +176,7 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
         }
         catch (Exception ex)
         {
-            _logger.Log($"❌ Error loading settings in ViewModel: {ex.Message}");
+            _logger.Log($"Error loading settings in ViewModel: {ex.Message}");
             _logger.Log($"Stack trace: {ex.StackTrace}");
 
             if (string.IsNullOrWhiteSpace(OutputDirectory))
@@ -138,9 +185,14 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
                     Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                     "Azure Speech Services",
                     "Transcripts");
-                _logger.Log($"📁 Set fallback OutputDirectory: '{OutputDirectory}'");
+                _logger.Log($"Set fallback OutputDirectory: '{OutputDirectory}'");
             }
+
             throw;
+        }
+        finally
+        {
+            _isLoadingSettings = false;
         }
     }
 
@@ -167,7 +219,11 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
 
             _logger.Log("Created AppSettings object, calling service SaveSettingsAsync");
             await _settingsService.SaveSettingsAsync(settings, saveCts.Token).ConfigureAwait(false);
-            _logger.Log("Settings saved from ViewModel successfully");
+
+            var hasCredentials = !string.IsNullOrWhiteSpace(Region) && !string.IsNullOrWhiteSpace(Key);
+            AreCredentialsSaved = hasCredentials;
+
+            _logger.Log($"Settings saved from ViewModel successfully - AreCredentialsSaved: {AreCredentialsSaved}");
 
             if (_logger is FileLogger fileLogger)
             {
@@ -235,7 +291,8 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
                         .TryGetFolderFromPathAsync(initialDirectory).ConfigureAwait(false)
                 };
 
-                var result = await mainWindow.MainWindow.StorageProvider.OpenFolderPickerAsync(options).ConfigureAwait(false);
+                var result = await mainWindow.MainWindow.StorageProvider.OpenFolderPickerAsync(options)
+                    .ConfigureAwait(false);
 
                 if (result.Count > 0)
                 {
@@ -277,6 +334,7 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
 
                 _logger.Log($"Set default output directory: {OutputDirectory}");
             }
+
             throw;
         }
     }

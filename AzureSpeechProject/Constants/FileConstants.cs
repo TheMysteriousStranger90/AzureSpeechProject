@@ -4,7 +4,7 @@ internal static class FileConstants
 {
     public static readonly string TranscriptsDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        "Azure Speech Services",
+        "Azio Speech",
         "Transcripts");
 
     public const string DefaultTranscriptPrefix = "azure_transcript";

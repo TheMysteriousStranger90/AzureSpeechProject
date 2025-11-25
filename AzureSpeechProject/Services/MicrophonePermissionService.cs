@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using AzureSpeechProject.Logger;
 using NAudio.Wave;
 
@@ -68,6 +69,25 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
             _logger.Log($"Invalid operation requesting microphone: {ex.Message}");
             return false;
         }
+    }
+
+    public Task OpenPrivacySettingsAsync()
+    {
+        try
+        {
+            _logger.Log("Opening Windows Microphone Privacy Settings...");
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "ms-settings:privacy-microphone",
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.Log($"Failed to open privacy settings: {ex.Message}");
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task<bool> CheckWindowsMicrophonePermissionAsync(CancellationToken cancellationToken)
@@ -164,6 +184,7 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
                                 _logger.Log("Microphone test cancelled");
                                 cancellationToken.ThrowIfCancellationRequested();
                             }
+
                             _logger.Log("Microphone test timed out - no data received within 3 seconds");
                         }
                     }
