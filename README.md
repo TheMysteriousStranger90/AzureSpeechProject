@@ -176,6 +176,10 @@ Bohdan Harabadzhyu
 
 *This application is not affiliated with Microsoft Corporation. Azure and Azure Speech Services are registered trademarks of Microsoft Corporation.*
 
+## Microsoft Store
+
+[![Get it from Microsoft Store](https://get.microsoft.com/images/en-us%20dark.svg)](https://apps.microsoft.com/detail/9PFV5DG73198)
+
 ## SourceForge
 
 [![Download AzureSpeechProject](https://a.fsdn.com/con/app/sf-download-button)](https://sourceforge.net/projects/azurespeechproject/files/latest/download)
