@@ -13,9 +13,4 @@ internal sealed class BoolToPasswordCharMultiConverter : IMultiValueConverter
         }
         return '●';
     }
-
-    public static object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
 }

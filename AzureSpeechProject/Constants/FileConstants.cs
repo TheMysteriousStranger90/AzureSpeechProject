@@ -7,7 +7,7 @@ internal static class FileConstants
         "Azio Speech",
         "Transcripts");
 
-    public const string DefaultTranscriptPrefix = "azure_transcript";
+    public const string DefaultTranscriptPrefix = "azio_transcript";
     public const string TextExtension = ".txt";
     public const string JsonExtension = ".json";
     public const string SrtExtension = ".srt";

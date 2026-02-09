@@ -4,7 +4,7 @@ using AzureSpeechProject.ViewModels;
 
 namespace AzureSpeechProject.Views;
 
-public partial class TranscriptionView : ReactiveUserControl<TranscriptionViewModel>
+internal sealed partial class TranscriptionView : ReactiveUserControl<TranscriptionViewModel>
 {
     public TranscriptionView()
     {

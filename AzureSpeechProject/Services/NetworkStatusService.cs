@@ -1,9 +1,10 @@
 ﻿using System.Net.NetworkInformation;
+using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 
 namespace AzureSpeechProject.Services;
 
-public class NetworkStatusService : INetworkStatusService
+internal sealed class NetworkStatusService : INetworkStatusService
 {
     private readonly ILogger _logger;
 
@@ -23,11 +24,6 @@ public class NetworkStatusService : INetworkStatusService
         catch (NetworkInformationException ex)
         {
             _logger.Log($"Error checking network connection: {ex.Message}");
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.Log($"Unexpected error checking network connection: {ex.Message}");
             throw;
         }
     }
@@ -57,11 +53,6 @@ public class NetworkStatusService : INetworkStatusService
         {
             _logger.Log($"Ping failed - no internet connection: {ex.Message}");
             return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.Log($"Unexpected error checking internet connectivity: {ex.Message}");
-            throw;
         }
     }
 }

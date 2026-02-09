@@ -1,13 +1,13 @@
 ﻿using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
-using AzureSpeechProject.Services;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
 namespace AzureSpeechProject.ViewModels;
 
-public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDisposable
+internal sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDisposable
 {
     private readonly ILogger _logger;
     private readonly INetworkStatusService _networkStatusService;

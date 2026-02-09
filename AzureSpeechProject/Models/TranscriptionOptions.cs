@@ -1,6 +1,6 @@
 ﻿namespace AzureSpeechProject.Models;
 
-public class TranscriptionOptions
+internal sealed class TranscriptionOptions
 {
     public TranscriptFormat OutputFormat { get; set; } = TranscriptFormat.Text;
     public bool IncludeTimestamps { get; set; } = true;

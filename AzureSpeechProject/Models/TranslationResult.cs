@@ -1,6 +1,6 @@
 ﻿namespace AzureSpeechProject.Models;
 
-public class TranslationResult
+internal sealed class TranslationResult
 {
     public string OriginalText { get; set; } = string.Empty;
     public string TranslatedText { get; set; } = string.Empty;

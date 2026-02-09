@@ -1,6 +1,6 @@
 ﻿namespace AzureSpeechProject.Models;
 
-public class AppSettings
+internal sealed class AppSettings
 {
     public string Region { get; set; } = string.Empty;
     public string Key { get; set; } = string.Empty;

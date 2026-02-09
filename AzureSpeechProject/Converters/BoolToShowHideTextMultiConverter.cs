@@ -13,9 +13,4 @@ internal sealed class BoolToShowHideTextMultiConverter : IMultiValueConverter
         }
         return "🔒 Show";
     }
-
-    public static object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
 }

@@ -2,15 +2,17 @@
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
+using AzureSpeechProject.Models.Events;
 using AzureSpeechProject.Services;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
 namespace AzureSpeechProject.ViewModels;
 
-public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewModel, IDisposable
+internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewModel, IDisposable
 {
     private readonly ILogger _logger;
     private readonly TranscriptionService _transcriptionService;
@@ -48,16 +50,19 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
     public bool CanClear => _canClear.Value;
     private TranscriptionDocument _document = new();
 
+    private static readonly Dictionary<string, string> LanguageNames = new()
+    {
+        { "es", "Spanish" }, { "fr", "French" }, { "de", "German" }, { "it", "Italian" },
+        { "pt", "Portuguese" }, { "ja", "Japanese" }, { "ko", "Korean" }, { "zh-Hans", "Chinese" },
+        { "ru", "Russian" }
+    };
+
     public TranscriptionViewModel(
         ILogger logger,
         TranscriptionService transcriptionService,
         TranslationService translationService,
         ITranscriptFileService fileService,
         AudioCaptureService audioCaptureService,
-#pragma warning disable IDE0060
-        INetworkStatusService networkStatusService,
-#pragma warning disable IDE0060
-        IMicrophonePermissionService microphonePermissionService,
         ISettingsService settingsService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -82,17 +87,39 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
 
         this.WhenAnyValue(x => x.SelectedTargetLanguage).Subscribe(lang =>
         {
-            var languageNames = new Dictionary<string, string>
-            {
-                { "es", "Spanish" }, { "fr", "French" }, { "de", "German" }, { "it", "Italian" },
-                { "pt", "Portuguese" }, { "ja", "Japanese" }, { "ko", "Korean" }, { "zh-Hans", "Chinese" },
-                { "ru", "Russian" }
-            };
-            TranslationHeader = $"Translation ({languageNames.GetValueOrDefault(lang, lang)})";
+            TranslationHeader = $"Translation ({LanguageNames.GetValueOrDefault(lang, lang)})";
         });
 
         this.WhenActivated(disposables =>
         {
+            StartCommand.ThrownExceptions
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(ex =>
+                {
+                    _logger.Log($"❌ Error in StartCommand: {ex.Message}");
+                    HandleRecordingError(ex);
+                })
+                .DisposeWith(disposables);
+
+            StopCommand.ThrownExceptions
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(ex =>
+                {
+                    _logger.Log($"❌ Error in StopCommand: {ex.Message}");
+                    Status = $"Error stopping: {ex.Message}";
+                    IsRecording = false;
+                })
+                .DisposeWith(disposables);
+
+            SaveCommand.ThrownExceptions
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(ex =>
+                {
+                    _logger.Log($"❌ Error in SaveCommand: {ex.Message}");
+                    Status = $"Error saving: {ex.Message}";
+                })
+                .DisposeWith(disposables);
+
             Observable.FromEventPattern<EventHandler<TranscriptionSegmentEventArgs>, TranscriptionSegmentEventArgs>(
                     h => _transcriptionService.OnTranscriptionUpdated += h,
                     h => _transcriptionService.OnTranscriptionUpdated -= h)
@@ -115,6 +142,43 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
                 _recordingCts?.Dispose();
             }).DisposeWith(disposables);
         });
+    }
+
+    private void HandleRecordingError(Exception ex)
+    {
+        IsRecording = false;
+
+        switch (ex)
+        {
+            case NAudio.MmException:
+                Status = "⚠️ Microphone error - Check if microphone is available and not used by another app";
+                break;
+
+            case UnauthorizedAccessException:
+                Status = "⚠️ Microphone access denied - Enable microphone permissions in Windows Settings";
+                break;
+
+            case InvalidOperationException when ex.Message.Contains("microphone", StringComparison.OrdinalIgnoreCase):
+                Status = "⚠️ Cannot access microphone - It may be in use by another application";
+                break;
+
+            case System.Net.WebException:
+            case System.Net.Http.HttpRequestException:
+                Status = "⚠️ Network error - Check your internet connection";
+                break;
+
+            case TimeoutException:
+                Status = "⚠️ Operation timed out - Please try again";
+                break;
+
+            case OperationCanceledException:
+                Status = "Recording cancelled";
+                break;
+
+            default:
+                Status = $"⚠️ Error: {ex.Message}";
+                break;
+        }
     }
 
     private void HandleTranscriptionUpdated(TranscriptionSegmentEventArgs e)
@@ -163,38 +227,14 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
 
             await _audioCaptureService.StartCapturingAsync(_recordingCts.Token).ConfigureAwait(false);
 
-            Status = "🎙️ Recording in progress... Speak now!";
+            Status = "Recording in progress... Speak now!";
             _logger.Log("All services started successfully.");
-        }
-        catch (OperationCanceledException)
-        {
-            Status = "Recording was cancelled";
-            _logger.Log("Recording start was cancelled");
-            await StopRecordingAsync().ConfigureAwait(false);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            Status = "❌ Microphone access denied. Please grant microphone permissions in Windows Settings.";
-            _logger.Log($"Microphone permission error: {ex.Message}");
-            await StopRecordingAsync().ConfigureAwait(false);
-        }
-        catch (System.Net.WebException ex)
-        {
-            Status = "❌ Network error. Please check your internet connection and try again.";
-            _logger.Log($"Network error starting recording: {ex.Message}");
-            await StopRecordingAsync().ConfigureAwait(false);
-        }
-        catch (System.Net.Http.HttpRequestException ex)
-        {
-            Status = "❌ Unable to connect to Azure Speech Services. Check your internet connection.";
-            _logger.Log($"HTTP error starting recording: {ex.Message}");
-            await StopRecordingAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            Status = $"❌ Error starting recording: {ex.Message}";
-            _logger.Log($"Error starting recording: {ex.Message}");
+            _logger.Log($"❌ Error in StartRecordingAsync: {ex.GetType().Name} - {ex.Message}");
             await StopRecordingAsync().ConfigureAwait(false);
+            throw;
         }
     }
 
@@ -229,14 +269,9 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
             {
                 IsRecording = false;
 
-                if (_document.Segments.Count > 0)
-                {
-                    Status = $"✅ Recording stopped. {_document.Segments.Count} segments captured.";
-                }
-                else
-                {
-                    Status = "⚠️ Recording stopped. No audio was captured.";
-                }
+                Status = _document.Segments.Count > 0
+                    ? $"Recording stopped. {_document.Segments.Count} segments captured."
+                    : "Recording stopped. No audio was captured.";
 
                 return Disposable.Empty;
             });
@@ -245,7 +280,7 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
         }
         catch (OperationCanceledException)
         {
-            Status = "⚠️ Stop operation timed out or was cancelled";
+            Status = "Stop operation timed out or was cancelled";
             _logger.Log("Stop recording was cancelled or timed out");
 
             RxApp.MainThreadScheduler.Schedule(Unit.Default, (scheduler, state) =>
@@ -254,10 +289,21 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
                 return Disposable.Empty;
             });
         }
-        catch (Exception ex)
+        catch (ObjectDisposedException ex)
         {
-            Status = $"❌ Error stopping recording: {ex.Message}";
-            _logger.Log($"Error stopping recording: {ex.Message}");
+            Status = "Error: resources already disposed";
+            _logger.Log($"Resources disposed during stop: {ex.Message}");
+
+            RxApp.MainThreadScheduler.Schedule(Unit.Default, (scheduler, state) =>
+            {
+                IsRecording = false;
+                return Disposable.Empty;
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            Status = $"Invalid operation while stopping: {ex.Message}";
+            _logger.Log($"Invalid operation stopping recording: {ex.Message}");
 
             RxApp.MainThreadScheduler.Schedule(Unit.Default, (scheduler, state) =>
             {
@@ -286,7 +332,7 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
                 null,
                 saveCts.Token).ConfigureAwait(false);
 
-            Status = $"✅ Transcript saved to: {filePath}";
+            Status = $"Transcript saved to: {filePath}";
 
             if (EnableTranslation && !string.IsNullOrWhiteSpace(CurrentTranslation))
             {
@@ -317,18 +363,28 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
                     SelectedTargetLanguage,
                     saveCts.Token).ConfigureAwait(false);
 
-                Status = $"✅ Transcript and translation saved to: {Path.GetDirectoryName(filePath)}";
+                Status = $"Transcript and translation saved to: {Path.GetDirectoryName(filePath)}";
             }
         }
         catch (OperationCanceledException)
         {
-            Status = "⚠️ Save operation was cancelled or timed out";
+            Status = "Save operation was cancelled or timed out";
             _logger.Log("Save transcript was cancelled");
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException ex)
         {
-            Status = $"❌ Error saving transcript: {ex.Message}";
-            _logger.Log($"Error saving transcript: {ex.Message}");
+            Status = $"Access denied: {ex.Message}";
+            _logger.Log($"Access denied saving transcript: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            Status = $"File error: {ex.Message}";
+            _logger.Log($"IO error saving transcript: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            Status = $"Invalid operation: {ex.Message}";
+            _logger.Log($"Invalid operation saving transcript: {ex.Message}");
         }
     }
 
@@ -337,29 +393,22 @@ public sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewMod
         timestamp = DateTime.Now;
         text = line;
 
-        try
+        if (line.StartsWith('[') && line.Contains(']', StringComparison.Ordinal))
         {
-            if (line.StartsWith('[') && line.Contains(']', StringComparison.Ordinal))
+            var parts = line.Split(']', 2);
+            if (parts.Length == 2)
             {
-                var parts = line.Split(']', 2);
-                if (parts.Length == 2)
+                var timeString = parts[0].Trim('[', ']');
+                if (TimeSpan.TryParse(timeString, CultureInfo.InvariantCulture, out var timeSpan))
                 {
-                    var timeString = parts[0].Trim('[', ']');
-                    if (TimeSpan.TryParse(timeString, CultureInfo.InvariantCulture, out var timeSpan))
-                    {
-                        timestamp = DateTime.Today.Add(timeSpan);
-                        text = parts[1].Trim();
-                        return true;
-                    }
+                    timestamp = DateTime.Today.Add(timeSpan);
+                    text = parts[1].Trim();
+                    return true;
                 }
             }
+        }
 
-            return false;
-        }
-        catch
-        {
-            return false;
-        }
+        return false;
     }
 
     private void ClearTranscript()

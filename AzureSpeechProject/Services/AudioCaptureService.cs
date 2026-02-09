@@ -1,10 +1,11 @@
-﻿using AzureSpeechProject.Logger;
-using AzureSpeechProject.Models;
+﻿using AzureSpeechProject.Interfaces;
+using AzureSpeechProject.Logger;
+using AzureSpeechProject.Models.Events;
 using NAudio.Wave;
 
 namespace AzureSpeechProject.Services;
 
-public class AudioCaptureService : IDisposable
+internal sealed class AudioCaptureService : IDisposable
 {
     private readonly ILogger _logger;
     private readonly ISettingsService _settingsService;
@@ -13,6 +14,7 @@ public class AudioCaptureService : IDisposable
     private bool _disposed;
     private readonly SemaphoreSlim _captureLock = new(1, 1);
     private CancellationTokenSource? _captureCts;
+    private long _totalBytesProcessed;
 
     public AudioCaptureService(ILogger logger, ISettingsService settingsService)
     {
@@ -49,12 +51,31 @@ public class AudioCaptureService : IDisposable
             _waveIn.RecordingStopped += WaveIn_RecordingStopped;
 
             _captureCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _totalBytesProcessed = 0;
 
-            _waveIn.StartRecording();
-            _isCapturing = true;
+            _logger.Log("🎤 Attempting to start microphone...");
 
-            _logger.Log(
-                $"Started audio capture: {settings.SampleRate}Hz, {settings.BitsPerSample}-bit, {settings.Channels} channel(s)");
+            try
+            {
+                _waveIn.StartRecording();
+                _isCapturing = true;
+                _logger.Log($"✅ Audio capture started: {settings.SampleRate}Hz, {settings.BitsPerSample}-bit, {settings.Channels} channel(s)");
+            }
+            catch (NAudio.MmException mmEx)
+            {
+                _logger.Log($"❌ NAudio microphone error: {mmEx.Message}");
+                _logger.Log($"   Error result: {mmEx.Result}");
+                _logger.Log("   Possible causes:");
+                _logger.Log("   1. Microphone is being used by another application (Skype, Teams, Discord, etc.)");
+                _logger.Log("   2. Microphone permissions denied in Windows Settings → Privacy → Microphone");
+                _logger.Log("   3. Microphone driver issue - try updating audio drivers");
+                _logger.Log("   4. Microphone hardware not properly connected");
+
+                CleanupCapture();
+                throw new InvalidOperationException(
+                    "Cannot access microphone. Please check: 1) No other app is using it, 2) Windows microphone permissions are enabled, 3) Microphone is properly connected.",
+                    mmEx);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -62,11 +83,29 @@ public class AudioCaptureService : IDisposable
             CleanupCapture();
             throw;
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.Log($"❌ Microphone access denied: {ex.Message}");
+            _logger.Log("   Check Windows Settings → Privacy & Security → Microphone");
+            CleanupCapture();
+            throw;
+        }
+        catch (InvalidOperationException)
+        {
+            CleanupCapture();
+            throw;
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            _logger.Log($"❌ COM error accessing microphone: {ex.Message} (HResult: {ex.HResult:X})");
+            CleanupCapture();
+            throw new InvalidOperationException($"Audio device COM error: {ex.Message}", ex);
+        }
         catch (Exception ex)
         {
-            _logger.Log($"Failed to start audio capture: {ex.Message}");
+            _logger.Log($"❌ Unexpected error starting audio capture: {ex.GetType().Name} - {ex.Message}");
             CleanupCapture();
-            throw new InvalidOperationException($"Audio capture initialization failed: {ex.Message}", ex);
+            throw;
         }
         finally
         {
@@ -84,7 +123,7 @@ public class AudioCaptureService : IDisposable
         await _captureLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _captureCts?.CancelAsync();
+            await (_captureCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
 
             if (_waveIn != null)
             {
@@ -93,15 +132,17 @@ public class AudioCaptureService : IDisposable
             }
 
             CleanupCapture();
+
+            _logger.Log($"✅ Audio capture stopped. Total bytes processed: {_totalBytesProcessed}");
         }
         catch (OperationCanceledException)
         {
             _logger.Log("Audio capture stop was cancelled");
             throw;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            _logger.Log($"Error stopping audio capture: {ex.Message}");
+            _logger.Log($"Invalid operation stopping audio capture: {ex.Message}");
             throw;
         }
         finally
@@ -122,24 +163,21 @@ public class AudioCaptureService : IDisposable
             var audioData = new byte[e.BytesRecorded];
             Array.Copy(e.Buffer, audioData, e.BytesRecorded);
 
-            var subscriberCount = AudioCaptured?.GetInvocationList().Length ?? 0;
-            _logger.Log(
-                $"📢 Invoking AudioCaptured event with {e.BytesRecorded} bytes, {subscriberCount} subscriber(s)");
+            Interlocked.Add(ref _totalBytesProcessed, e.BytesRecorded);
 
             AudioCaptured?.Invoke(this, new AudioCapturedEventArgs(audioData));
-
-            if (DateTime.Now.Millisecond % 1000 < 50)
-            {
-                _logger.Log($"Audio data captured: {e.BytesRecorded} bytes");
-            }
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            _logger.Log("Audio processing stopped due to disposal");
+            _logger.Log($"Audio processing stopped due to disposal: {ex.Message}");
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
-            _logger.Log($"❌ Error in WaveIn_DataAvailable: {ex.Message}");
+            _logger.Log($"Invalid argument in audio processing: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.Log($"Invalid operation in WaveIn_DataAvailable: {ex.Message}");
         }
     }
 
@@ -150,47 +188,40 @@ public class AudioCaptureService : IDisposable
 
         if (e.Exception != null)
         {
-            _logger.Log($"Recording stopped due to error: {e.Exception.Message}");
+            _logger.Log($"❌ Recording stopped due to error: {e.Exception.Message}");
         }
     }
 
     private void CleanupCapture()
     {
         _isCapturing = false;
+
+        if (_waveIn != null)
+        {
+            _waveIn.DataAvailable -= WaveIn_DataAvailable;
+            _waveIn.RecordingStopped -= WaveIn_RecordingStopped;
+            _waveIn.Dispose();
+            _waveIn = null;
+        }
+
         _captureCts?.Dispose();
         _captureCts = null;
     }
 
     public void Dispose()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!_disposed && disposing)
+        if (!_disposed)
         {
             try
             {
                 _captureCts?.Cancel();
-                _captureCts?.Dispose();
-
-                if (_waveIn != null)
-                {
-                    _waveIn.StopRecording();
-                    _waveIn.DataAvailable -= WaveIn_DataAvailable;
-                    _waveIn.RecordingStopped -= WaveIn_RecordingStopped;
-                    _waveIn.Dispose();
-                    _waveIn = null;
-                }
-
-                _captureLock?.Dispose();
+                CleanupCapture();
+                _captureLock.Dispose();
                 _logger.Log("AudioCaptureService disposed");
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException ex)
             {
-                // Already disposed
+                _logger.Log($"Object already disposed during cleanup: {ex.Message}");
             }
 
             _disposed = true;

@@ -1,6 +1,6 @@
-﻿namespace AzureSpeechProject.Models;
+﻿namespace AzureSpeechProject.Models.Events;
 
-public sealed class TranslationResultEventArgs : EventArgs
+internal sealed class TranslationResultEventArgs : EventArgs
 {
     public TranslationResult Result { get; }
 

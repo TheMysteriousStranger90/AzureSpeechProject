@@ -1,11 +1,12 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
+using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 using NAudio.Wave;
 
 namespace AzureSpeechProject.Services;
 
-public sealed class MicrophonePermissionService : IMicrophonePermissionService
+internal sealed class MicrophonePermissionService : IMicrophonePermissionService
 {
     private readonly ILogger _logger;
 
@@ -82,9 +83,13 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
                 UseShellExecute = true
             });
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.Log($"Failed to open privacy settings: {ex.Message}");
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            _logger.Log($"Win32 error opening privacy settings: {ex.Message}");
         }
 
         return Task.CompletedTask;

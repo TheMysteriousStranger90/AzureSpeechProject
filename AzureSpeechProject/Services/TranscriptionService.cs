@@ -1,11 +1,13 @@
-﻿using AzureSpeechProject.Logger;
+﻿using AzureSpeechProject.Interfaces;
+using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
+using AzureSpeechProject.Models.Events;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 
 namespace AzureSpeechProject.Services;
 
-public sealed class TranscriptionService : IDisposable
+internal sealed class TranscriptionService : IDisposable
 {
     private readonly ISettingsService _settingsService;
     private readonly AudioCaptureService _audioCapture;
@@ -111,9 +113,15 @@ public sealed class TranscriptionService : IDisposable
             await CleanupTranscriptionAsync().ConfigureAwait(false);
             throw;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.Log($"Error starting transcription: {ex.Message}");
+            await CleanupTranscriptionAsync().ConfigureAwait(false);
+            throw;
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.Log($"Invalid argument starting transcription: {ex.Message}");
             await CleanupTranscriptionAsync().ConfigureAwait(false);
             throw;
         }
@@ -129,7 +137,11 @@ public sealed class TranscriptionService : IDisposable
                 _logger.Log($"✅ OnAudioCaptured called - writing {audioData.Length} bytes to recognizer");
                 _audioInputStream.Write(audioData);
             }
-            catch (Exception ex)
+            catch (ObjectDisposedException ex)
+            {
+                _logger.Log($"❌ Audio stream disposed: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 _logger.Log($"❌ Error writing audio data: {ex.Message}");
             }
@@ -205,9 +217,13 @@ public sealed class TranscriptionService : IDisposable
                     _logger.Log("Closing audio input stream...");
                     _audioInputStream.Close();
                 }
-                catch (Exception ex)
+                catch (ObjectDisposedException ex)
                 {
                     _logger.Log($"Error closing audio stream: {ex.Message}");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.Log($"Invalid operation closing audio stream: {ex.Message}");
                 }
             }
 
@@ -239,7 +255,7 @@ public sealed class TranscriptionService : IDisposable
             {
                 _logger.Log("Recognizer already disposed");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 _logger.Log($"Error stopping recognizer: {ex.Message}");
             }
@@ -260,7 +276,7 @@ public sealed class TranscriptionService : IDisposable
             {
                 _audioInputStream.Dispose();
             }
-            catch (Exception ex)
+            catch (ObjectDisposedException ex)
             {
                 _logger.Log($"Error disposing audio stream: {ex.Message}");
             }
@@ -277,42 +293,33 @@ public sealed class TranscriptionService : IDisposable
 
     public void Dispose()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    private void Dispose(bool disposing)
-    {
         if (_disposed)
             return;
 
-        if (disposing)
+        try
         {
-            try
+            _transcriptionCts?.Cancel();
+            _transcriptionCts?.Dispose();
+
+            if (_recognizer != null)
             {
-                _transcriptionCts?.Cancel();
-                _transcriptionCts?.Dispose();
-
-                if (_recognizer != null)
-                {
-                    _recognizer.Recognizing -= OnRecognizing;
-                    _recognizer.Recognized -= OnRecognized;
-                    _recognizer.Canceled -= OnCanceled;
-                    if (_sessionStartedHandler != null) _recognizer.SessionStarted -= _sessionStartedHandler;
-                    if (_sessionStoppedHandler != null) _recognizer.SessionStopped -= _sessionStoppedHandler;
-                    _recognizer.Dispose();
-                    _recognizer = null;
-                }
-
-                _audioInputStream?.Dispose();
-                _audioInputStream = null;
-
-                _logger.Log("TranscriptionService disposed");
+                _recognizer.Recognizing -= OnRecognizing;
+                _recognizer.Recognized -= OnRecognized;
+                _recognizer.Canceled -= OnCanceled;
+                if (_sessionStartedHandler != null) _recognizer.SessionStarted -= _sessionStartedHandler;
+                if (_sessionStoppedHandler != null) _recognizer.SessionStopped -= _sessionStoppedHandler;
+                _recognizer.Dispose();
+                _recognizer = null;
             }
-            catch (ObjectDisposedException)
-            {
-                // Already disposed, ignore
-            }
+
+            _audioInputStream?.Dispose();
+            _audioInputStream = null;
+
+            _logger.Log("TranscriptionService disposed");
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already disposed, ignore
         }
 
         _disposed = true;

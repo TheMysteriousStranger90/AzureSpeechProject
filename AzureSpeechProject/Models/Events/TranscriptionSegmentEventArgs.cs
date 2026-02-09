@@ -1,6 +1,6 @@
-﻿namespace AzureSpeechProject.Models;
+﻿namespace AzureSpeechProject.Models.Events;
 
-public sealed class TranscriptionSegmentEventArgs : EventArgs
+internal sealed class TranscriptionSegmentEventArgs : EventArgs
 {
     public TranscriptionSegment Segment { get; }
 

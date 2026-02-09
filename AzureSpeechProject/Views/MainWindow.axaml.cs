@@ -7,7 +7,7 @@ using System.Reactive.Disposables;
 
 namespace AzureSpeechProject.Views;
 
-public partial class MainWindow : ReactiveWindow<MainWindowViewModel>
+internal sealed partial class MainWindow : ReactiveWindow<MainWindowViewModel>
 {
     public MainWindow()
     {

@@ -1,12 +1,14 @@
-﻿using AzureSpeechProject.Logger;
+﻿using AzureSpeechProject.Interfaces;
+using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
+using AzureSpeechProject.Models.Events;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 using Microsoft.CognitiveServices.Speech.Translation;
 
 namespace AzureSpeechProject.Services;
 
-public sealed class TranslationService : IDisposable
+internal sealed class TranslationService : IDisposable
 {
     private readonly ILogger _logger;
     private readonly ISettingsService _settingsService;
@@ -14,6 +16,7 @@ public sealed class TranslationService : IDisposable
     private TranslationRecognizer? _recognizer;
     private PushAudioInputStream? _audioStream;
     private bool _isTranslating;
+    private bool _disposed;
     private CancellationTokenSource? _translationCts;
 
     public event EventHandler<TranslationResultEventArgs>? OnTranslationUpdated;
@@ -31,6 +34,7 @@ public sealed class TranslationService : IDisposable
         string targetLanguage,
         CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (_isTranslating)
@@ -89,9 +93,7 @@ public sealed class TranslationService : IDisposable
             _recognizer.SessionStarted += (s, e) => _logger.Log($"Translation Session started: {e.SessionId}");
             _recognizer.SessionStopped += (s, e) => _logger.Log($"Translation Session stopped: {e.SessionId}");
 
-            _logger.Log("📝 Subscribing translation to AudioCaptured event...");
             _audioCaptureService.AudioCaptured += OnAudioCaptured;
-            _logger.Log("✅ Translation subscribed to AudioCaptured event");
 
             _translationCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -106,9 +108,21 @@ public sealed class TranslationService : IDisposable
             await CleanupTranslationAsync().ConfigureAwait(false);
             throw;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            _logger.Log($"Error starting translation: {ex.Message}");
+            _logger.Log($"Invalid operation starting translation: {ex.Message}");
+            await CleanupTranslationAsync().ConfigureAwait(false);
+            throw;
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.Log($"Invalid argument starting translation: {ex.Message}");
+            await CleanupTranslationAsync().ConfigureAwait(false);
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.Log($"Unauthorized access starting translation: {ex.Message}");
             await CleanupTranslationAsync().ConfigureAwait(false);
             throw;
         }
@@ -123,9 +137,17 @@ public sealed class TranslationService : IDisposable
                 var audioData = e.GetAudioDataArray();
                 _audioStream.Write(audioData);
             }
-            catch (Exception ex)
+            catch (ObjectDisposedException ex)
             {
-                _logger.Log($"Error writing audio data to translation: {ex.Message}");
+                _logger.Log($"Audio stream disposed while writing: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.Log($"Invalid operation writing audio data to translation: {ex.Message}");
+            }
+            catch (IOException ex)
+            {
+                _logger.Log($"IO error writing audio data to translation: {ex.Message}");
             }
         }
     }
@@ -146,12 +168,15 @@ public sealed class TranslationService : IDisposable
             {
                 try
                 {
-                    _logger.Log("Closing translation audio stream...");
                     _audioStream.Close();
                 }
-                catch (Exception ex)
+                catch (ObjectDisposedException ex)
                 {
-                    _logger.Log($"Error closing translation audio stream: {ex.Message}");
+                    _logger.Log($"Audio stream already disposed: {ex.Message}");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.Log($"Invalid operation closing translation audio stream: {ex.Message}");
                 }
             }
 
@@ -174,17 +199,15 @@ public sealed class TranslationService : IDisposable
         {
             try
             {
-                _logger.Log("Stopping translation recognition...");
                 await _recognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
-                _logger.Log("Translation recognition stopped successfully");
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException ex)
             {
-                _logger.Log("Translation recognizer already disposed");
+                _logger.Log($"Recognizer already disposed during cleanup: {ex.Message}");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.Log($"Error stopping translation recognizer: {ex.Message}");
+                _logger.Log($"Invalid operation stopping translation recognizer: {ex.Message}");
             }
 
             _recognizer.Dispose();
@@ -197,9 +220,9 @@ public sealed class TranslationService : IDisposable
             {
                 _audioStream.Dispose();
             }
-            catch (Exception ex)
+            catch (ObjectDisposedException ex)
             {
-                _logger.Log($"Error disposing translation audio stream: {ex.Message}");
+                _logger.Log($"Audio stream already disposed: {ex.Message}");
             }
 
             _audioStream = null;
@@ -212,18 +235,14 @@ public sealed class TranslationService : IDisposable
 
     public void Dispose()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
+        if (_disposed)
+            return;
 
-    private void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _translationCts?.Cancel();
-            _translationCts?.Dispose();
-            _recognizer?.Dispose();
-            _audioStream?.Dispose();
-        }
+        _translationCts?.Cancel();
+        _translationCts?.Dispose();
+        _recognizer?.Dispose();
+        _audioStream?.Dispose();
+
+        _disposed = true;
     }
 }

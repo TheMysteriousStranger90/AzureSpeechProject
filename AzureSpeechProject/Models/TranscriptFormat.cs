@@ -1,6 +1,6 @@
 ﻿namespace AzureSpeechProject.Models;
 
-public enum TranscriptFormat
+internal enum TranscriptFormat
 {
     Text,
     Json,
