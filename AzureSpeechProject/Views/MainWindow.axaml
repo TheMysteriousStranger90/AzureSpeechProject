@@ -18,7 +18,7 @@
         ExtendClientAreaTitleBarHeightHint="-1">
 
     <Design.DataContext>
-        <vm:MainWindowViewModel/>
+        <vm:MainWindowViewModel />
     </Design.DataContext>
 
     <Window.Resources>
@@ -28,62 +28,83 @@
 
     <Window.Styles>
         <Style Selector="Window">
-            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}" />
         </Style>
         <Style Selector="TabControl">
-            <Setter Property="Margin" Value="0 40 0 0"/>
+            <Setter Property="Margin" Value="0 40 0 0" />
         </Style>
         <Style Selector="TabItem">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Padding" Value="20 12"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="CornerRadius" Value="12,12,0,0"/>
-            <Setter Property="Margin" Value="4,0,0,0"/>
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Padding" Value="20 12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="12,12,0,0" />
+            <Setter Property="Margin" Value="4,0,0,0" />
         </Style>
         <Style Selector="TabItem:selected">
-            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1,1,1,0"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1,1,1,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
         </Style>
         <Style Selector="TabItem:pointerover /template/ ContentPresenter">
-            <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextBrush}" />
         </Style>
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,*,Auto">
         <!-- Custom title bar -->
-        <Grid x:Name="TitleBar" Grid.Row="0" Height="40" ColumnDefinitions="Auto,*,Auto" Background="{DynamicResource AzurePrimaryBlue}">
+        <Grid x:Name="TitleBar" Grid.Row="0" Height="40" ColumnDefinitions="Auto,*,Auto"
+              Background="{DynamicResource AzurePrimaryBlue}">
             <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
                 <Border Background="White" CornerRadius="4" Padding="2" Margin="0,0,8,0">
-                    <Image Source="/Assets/logo.png" Width="20" Height="20" VerticalAlignment="Center"/>
+                    <Image Source="/Assets/logo.png" Width="20" Height="20" VerticalAlignment="Center" />
                 </Border>
-                <TextBlock Text="AzioSpeech Recognition and Translation" Foreground="White" FontSize="14" VerticalAlignment="Center" FontWeight="Medium"/>
+                <TextBlock Text="AzioSpeech Recognition and Translation" Foreground="White" FontSize="14"
+                           VerticalAlignment="Center" FontWeight="Medium" />
             </StackPanel>
 
-            <Grid Grid.Column="1" Background="Transparent" PointerPressed="TitleBarPointerPressed"/>
+            <Grid Grid.Column="1" Background="Transparent" PointerPressed="TitleBarPointerPressed" />
 
-            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch" HorizontalAlignment="Right">
-                <Button Content="🗕" Background="Transparent" BorderThickness="0" Foreground="White"
-                        VerticalAlignment="Stretch" Width="46" Click="MinimizeButtonClick"
-                        CornerRadius="0"/>
-                <Button x:Name="MaximizeButton" Content="🗖" Background="Transparent" BorderThickness="0" Foreground="White"
-                        VerticalAlignment="Stretch" Width="46" Click="MaximizeButtonClick"
-                        CornerRadius="0"/>
-                <Button Content="🗙" Background="Transparent" BorderThickness="0" Foreground="White"
-                        VerticalAlignment="Stretch" Width="46" Click="CloseButtonClick"
-                        CornerRadius="0"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch"
+                        HorizontalAlignment="Right">
+                <Button Content="🗕"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Foreground="White"
+                        VerticalAlignment="Stretch"
+                        Width="46"
+                        Command="{Binding MinimizeCommand}"
+                        CornerRadius="0" />
+
+                <Button x:Name="MaximizeButton"
+                        Content="{Binding MaximizeButtonIcon}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Foreground="White"
+                        VerticalAlignment="Stretch"
+                        Width="46"
+                        Command="{Binding MaximizeCommand}"
+                        CornerRadius="0" />
+
+                <Button Content="🗙"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Foreground="White"
+                        VerticalAlignment="Stretch"
+                        Width="46"
+                        Click="CloseButtonClick"
+                        CornerRadius="0" />
             </StackPanel>
         </Grid>
 
         <!-- Main content -->
         <TabControl Grid.Row="1" Margin="0,0,0,0">
             <TabItem Header="Transcription">
-                <views:TranscriptionView DataContext="{Binding TranscriptionViewModel}"/>
+                <views:TranscriptionView DataContext="{Binding TranscriptionViewModel}" />
             </TabItem>
             <TabItem Header="Settings">
-                <views:SettingsView DataContext="{Binding SettingsViewModel}"/>
+                <views:SettingsView DataContext="{Binding SettingsViewModel}" />
             </TabItem>
         </TabControl>
 
@@ -94,14 +115,14 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <Ellipse x:Name="StatusIndicator" Width="8" Height="8"
                              Fill="{Binding TranscriptionViewModel.IsRecording, Converter={StaticResource BoolToColorConverter}}"
-                             Margin="0,0,8,0" VerticalAlignment="Center"/>
+                             Margin="0,0,8,0" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding StatusMessage}" Classes="StatusBar"
-                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="Developed by: " Classes="StatusBar" VerticalAlignment="Center"/>
+                    <TextBlock Text="Developed by: " Classes="StatusBar" VerticalAlignment="Center" />
                     <TextBlock Text="Bohdan Harabadzhyu" Classes="StatusBar" VerticalAlignment="Center"
-                               Foreground="{DynamicResource AzurePrimaryBlue}" FontWeight="SemiBold"/>
+                               Foreground="{DynamicResource AzurePrimaryBlue}" FontWeight="SemiBold" />
                 </StackPanel>
             </Grid>
         </Border>
