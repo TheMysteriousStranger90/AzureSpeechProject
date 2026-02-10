@@ -1,5 +1,4 @@
-﻿using Avalonia.Markup.Xaml;
-using Avalonia.ReactiveUI;
+﻿using Avalonia.ReactiveUI;
 using AzureSpeechProject.ViewModels;
 
 namespace AzureSpeechProject.Views;
@@ -9,10 +8,5 @@ internal sealed partial class TranscriptionView : ReactiveUserControl<Transcript
     public TranscriptionView()
     {
         InitializeComponent();
-    }
-
-    private void InitializeComponent()
-    {
-        AvaloniaXamlLoader.Load(this);
     }
 }
