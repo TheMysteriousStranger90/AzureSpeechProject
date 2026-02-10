@@ -95,10 +95,7 @@ internal sealed class TranscriptFileService : ITranscriptFileService
 
             if (string.IsNullOrWhiteSpace(outputDirectory))
             {
-                outputDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "Azure Speech Services",
-                    "Transcripts");
+                outputDirectory = PathConstants.DefaultOutputDirectory;
             }
 
             if (!Directory.Exists(outputDirectory))

@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
+using AzureSpeechProject.Constants;
 using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 using NAudio.Wave;
@@ -128,7 +129,7 @@ internal sealed class MicrophonePermissionService : IMicrophonePermissionService
                 {
                     using var waveIn = new WaveInEvent
                     {
-                        WaveFormat = new WaveFormat(16000, 1),
+                        WaveFormat = new WaveFormat(AudioConstants.DefaultSampleRate, AudioConstants.DefaultChannels),
                         DeviceNumber = 0,
                         BufferMilliseconds = 100
                     };
@@ -177,7 +178,7 @@ internal sealed class MicrophonePermissionService : IMicrophonePermissionService
                         waveIn.StartRecording();
 
                         var receivedDataTask = dataReceivedEvent.Task;
-                        var timeoutTask = Task.Delay(3000, cancellationToken);
+                        var timeoutTask = Task.Delay(TimeoutConstants.MicrophoneTestTimeout, cancellationToken);
                         var completedTask = await Task.WhenAny(receivedDataTask, timeoutTask).ConfigureAwait(false);
 
                         waveIn.StopRecording();

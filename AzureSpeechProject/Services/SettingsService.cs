@@ -1,11 +1,12 @@
 ﻿using System.Globalization;
 using System.Runtime.Versioning;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using AzureSpeechProject.Constants;
 using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
+using System.Security.Cryptography;
 
 namespace AzureSpeechProject.Services;
 
@@ -32,16 +33,13 @@ internal sealed class SettingsService : ISettingsService
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var appFolder = Path.Combine(appDataPath, "AzureSpeechProject");
-
-        if (!Directory.Exists(appFolder))
+        if (!Directory.Exists(PathConstants.AppDataFolder))
         {
-            Directory.CreateDirectory(appFolder);
+            Directory.CreateDirectory(PathConstants.AppDataFolder);
         }
 
-        _settingsFilePath = Path.Combine(appFolder, "settings.json");
-        _entropy = Encoding.UTF8.GetBytes("AzureSpeechProject_v1.0_Entropy_Azure");
+        _settingsFilePath = Path.Combine(PathConstants.AppDataFolder, "settings.json");
+        _entropy = SecurityConstants.GetEntropy();
     }
 
     public string SettingsFilePath => _settingsFilePath;
@@ -83,7 +81,7 @@ internal sealed class SettingsService : ISettingsService
             var settings = new AppSettings
             {
                 Region = settingsData.Region ?? string.Empty,
-                SpeechLanguage = settingsData.SpeechLanguage ?? "en-US",
+                SpeechLanguage = settingsData.SpeechLanguage ?? SupportedLanguages.SpeechRecognitionLanguages[0],
                 SampleRate = settingsData.SampleRate,
                 BitsPerSample = settingsData.BitsPerSample,
                 Channels = settingsData.Channels,
@@ -172,7 +170,7 @@ internal sealed class SettingsService : ISettingsService
             var settingsData = new SettingsData
             {
                 Region = settings.Region ?? string.Empty,
-                SpeechLanguage = settings.SpeechLanguage ?? "en-US",
+                SpeechLanguage = settings.SpeechLanguage ?? SupportedLanguages.SpeechRecognitionLanguages[0],
                 SampleRate = settings.SampleRate,
                 BitsPerSample = settings.BitsPerSample,
                 Channels = settings.Channels,
@@ -286,14 +284,11 @@ internal sealed class SettingsService : ISettingsService
         {
             Region = string.Empty,
             Key = string.Empty,
-            SpeechLanguage = "en-US",
-            SampleRate = 16000,
-            BitsPerSample = 16,
-            Channels = 1,
-            OutputDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "Azure Speech Services",
-                "Transcripts")
+            SpeechLanguage = SupportedLanguages.SpeechRecognitionLanguages[0],
+            SampleRate = AudioConstants.DefaultSampleRate,
+            BitsPerSample = AudioConstants.DefaultBitsPerSample,
+            Channels = AudioConstants.DefaultChannels,
+            OutputDirectory = PathConstants.DefaultOutputDirectory
         };
     }
 

@@ -2,6 +2,7 @@
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using Avalonia.Platform.Storage;
+using AzureSpeechProject.Constants;
 using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
@@ -24,20 +25,17 @@ internal sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel,
     [Reactive] public string Key { get; set; } = string.Empty;
     [Reactive] public bool ShowKey { get; set; }
 
-    [Reactive] public string SelectedSpeechLanguage { get; set; } = "en-US";
+    [Reactive] public string SelectedSpeechLanguage { get; set; } = SupportedLanguages.SpeechRecognitionLanguages[0];
 
-    public IReadOnlyList<string> AvailableSpeechLanguages { get; } = new List<string>
-    {
-        "en-US",
-    };
+    public IReadOnlyList<string> AvailableSpeechLanguages { get; } = SupportedLanguages.SpeechRecognitionLanguages;
 
-    [Reactive] public int SelectedSampleRate { get; set; } = 16000;
+    [Reactive] public int SelectedSampleRate { get; set; } = AudioConstants.DefaultSampleRate;
     public IReadOnlyList<int> SampleRates { get; } = new List<int> { 8000, 16000, 44100, 48000 };
 
-    [Reactive] public int SelectedBitsPerSample { get; set; } = 16;
+    [Reactive] public int SelectedBitsPerSample { get; set; } = AudioConstants.DefaultBitsPerSample;
     public IReadOnlyList<int> BitsPerSample { get; } = new List<int> { 8, 16, 24, 32 };
 
-    [Reactive] public int SelectedChannels { get; set; } = 1;
+    [Reactive] public int SelectedChannels { get; set; } = AudioConstants.DefaultChannels;
     public IReadOnlyList<int> Channels { get; } = new List<int> { 1, 2 };
 
     [Reactive] public string OutputDirectory { get; set; } = string.Empty;
@@ -65,10 +63,7 @@ internal sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel,
 
         if (string.IsNullOrWhiteSpace(OutputDirectory))
         {
-            OutputDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "Azure Speech Services",
-                "Transcripts");
+            OutputDirectory = PathConstants.DefaultOutputDirectory;
         }
 
         this.WhenActivated(disposables =>
@@ -115,18 +110,20 @@ internal sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel,
             return;
         }
 
-        try
-        {
-            var savedSettings = _settingsService.LoadSettingsAsync(CancellationToken.None).GetAwaiter().GetResult();
-            var credentialsMatch = savedSettings.Region == Region && savedSettings.Key == Key;
-            AreCredentialsSaved = credentialsMatch;
-            _logger.Log($"Credentials match saved state: {credentialsMatch}");
-        }
-        catch (Exception ex)
-        {
-            _logger.Log($"Error checking saved credentials: {ex.Message}");
-            AreCredentialsSaved = false;
-        }
+        Observable
+            .FromAsync(() => _settingsService.LoadSettingsAsync(CancellationToken.None))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(
+                savedSettings =>
+                {
+                    var credentialsMatch = savedSettings.Region == Region && savedSettings.Key == Key;
+                    AreCredentialsSaved = credentialsMatch;
+                },
+                ex =>
+                {
+                    _logger.Log($"Error checking saved credentials: {ex.Message}");
+                    AreCredentialsSaved = false;
+                });
     }
 
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
@@ -141,7 +138,7 @@ internal sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel,
 
             Region = settings.Region ?? string.Empty;
             Key = settings.Key ?? string.Empty;
-            SelectedSpeechLanguage = settings.SpeechLanguage ?? "en-US";
+            SelectedSpeechLanguage = settings.SpeechLanguage ?? SupportedLanguages.SpeechRecognitionLanguages[0];
             SelectedSampleRate = settings.SampleRate;
             SelectedBitsPerSample = settings.BitsPerSample;
             SelectedChannels = settings.Channels;
@@ -152,10 +149,7 @@ internal sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel,
             }
             else
             {
-                OutputDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "Azure Speech Services",
-                    "Transcripts");
+                OutputDirectory = PathConstants.DefaultOutputDirectory;
             }
 
             var hasCredentials = !string.IsNullOrWhiteSpace(Region) && !string.IsNullOrWhiteSpace(Key);
@@ -173,10 +167,7 @@ internal sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel,
 
             if (string.IsNullOrWhiteSpace(OutputDirectory))
             {
-                OutputDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "Azure Speech Services",
-                    "Transcripts");
+                OutputDirectory = PathConstants.DefaultOutputDirectory;
             }
 
             throw;
@@ -187,10 +178,7 @@ internal sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel,
 
             if (string.IsNullOrWhiteSpace(OutputDirectory))
             {
-                OutputDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "Azure Speech Services",
-                    "Transcripts");
+                OutputDirectory = PathConstants.DefaultOutputDirectory;
             }
 
             throw;
@@ -203,7 +191,7 @@ internal sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel,
 
     private async Task SaveSettingsAsync()
     {
-        using var saveCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var saveCts = new CancellationTokenSource(TimeoutConstants.OperationTimeout);
 
         try
         {
@@ -257,7 +245,7 @@ internal sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel,
 
     private async Task ResetSettingsAsync()
     {
-        using var resetCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var resetCts = new CancellationTokenSource(TimeoutConstants.OperationTimeout);
 
         try
         {
@@ -337,10 +325,7 @@ internal sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel,
 
             if (string.IsNullOrWhiteSpace(OutputDirectory))
             {
-                OutputDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "Azure Speech Services",
-                    "Transcripts");
+                OutputDirectory = PathConstants.DefaultOutputDirectory;
             }
 
             throw;

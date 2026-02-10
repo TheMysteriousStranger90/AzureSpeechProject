@@ -2,6 +2,7 @@
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using AzureSpeechProject.Constants;
 using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
@@ -32,8 +33,7 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
     [Reactive] public string Status { get; set; } = "Ready to record";
     [Reactive] public TranscriptFormat SelectedOutputFormat { get; set; } = TranscriptFormat.Text;
 
-    public IReadOnlyList<string> AvailableLanguages { get; } =
-        ["es", "fr", "de", "it", "pt", "ja", "ko", "zh-Hans", "ru"];
+    public IReadOnlyList<string> AvailableLanguages { get; } = SupportedLanguages.TranslationLanguages;
 
     public IReadOnlyList<TranscriptFormat> OutputFormats { get; } =
         [TranscriptFormat.Text, TranscriptFormat.Json, TranscriptFormat.Srt];
@@ -49,13 +49,6 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
     private readonly ObservableAsPropertyHelper<bool> _canClear;
     public bool CanClear => _canClear.Value;
     private TranscriptionDocument _document = new();
-
-    private static readonly Dictionary<string, string> LanguageNames = new()
-    {
-        { "es", "Spanish" }, { "fr", "French" }, { "de", "German" }, { "it", "Italian" },
-        { "pt", "Portuguese" }, { "ja", "Japanese" }, { "ko", "Korean" }, { "zh-Hans", "Chinese" },
-        { "ru", "Russian" }
-    };
 
     public TranscriptionViewModel(
         ILogger logger,
@@ -87,7 +80,7 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
 
         this.WhenAnyValue(x => x.SelectedTargetLanguage).Subscribe(lang =>
         {
-            TranslationHeader = $"Translation ({LanguageNames.GetValueOrDefault(lang, lang)})";
+            TranslationHeader = $"Translation ({SupportedLanguages.LanguageNames.GetValueOrDefault(lang, lang)})";
         });
 
         this.WhenActivated(disposables =>
@@ -246,7 +239,7 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
 
         Status = "Stopping...";
 
-        using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var stopCts = new CancellationTokenSource(TimeoutConstants.OperationTimeout);
 
         try
         {
@@ -254,7 +247,7 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
 
             await _audioCaptureService.StopCapturingAsync(stopCts.Token).ConfigureAwait(false);
 
-            await Task.Delay(500, stopCts.Token).ConfigureAwait(false);
+            await Task.Delay(AudioConstants.StopDelayMilliseconds, stopCts.Token).ConfigureAwait(false);
 
             await _transcriptionService.StopTranscriptionAsync(stopCts.Token).ConfigureAwait(false);
 
@@ -322,7 +315,7 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
     {
         Status = "Saving transcript...";
 
-        using var saveCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var saveCts = new CancellationTokenSource(TimeoutConstants.SaveTimeout);
 
         try
         {

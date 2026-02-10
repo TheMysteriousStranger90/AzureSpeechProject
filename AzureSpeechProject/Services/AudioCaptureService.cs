@@ -1,4 +1,5 @@
-﻿using AzureSpeechProject.Interfaces;
+﻿using AzureSpeechProject.Constants;
+using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models.Events;
 using NAudio.Wave;
@@ -44,7 +45,7 @@ internal sealed class AudioCaptureService : IDisposable
             _waveIn = new WaveInEvent
             {
                 WaveFormat = new WaveFormat(settings.SampleRate, settings.BitsPerSample, settings.Channels),
-                BufferMilliseconds = 50
+                BufferMilliseconds = AudioConstants.BufferMilliseconds
             };
 
             _waveIn.DataAvailable += WaveIn_DataAvailable;
@@ -59,7 +60,8 @@ internal sealed class AudioCaptureService : IDisposable
             {
                 _waveIn.StartRecording();
                 _isCapturing = true;
-                _logger.Log($"✅ Audio capture started: {settings.SampleRate}Hz, {settings.BitsPerSample}-bit, {settings.Channels} channel(s)");
+                _logger.Log(
+                    $"✅ Audio capture started: {settings.SampleRate}Hz, {settings.BitsPerSample}-bit, {settings.Channels} channel(s)");
             }
             catch (NAudio.MmException mmEx)
             {

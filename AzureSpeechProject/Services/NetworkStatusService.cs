@@ -1,4 +1,5 @@
 ﻿using System.Net.NetworkInformation;
+using AzureSpeechProject.Constants;
 using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 
@@ -36,7 +37,9 @@ internal sealed class NetworkStatusService : INetworkStatusService
 
             using var ping = new Ping();
 
-            var reply = await ping.SendPingAsync("8.8.8.8", 2000).ConfigureAwait(false);
+            var reply = await ping.SendPingAsync(
+                NetworkConstants.ConnectivityTestHost,
+                TimeoutConstants.PingTimeoutMs).ConfigureAwait(false);
 
             cancellationToken.ThrowIfCancellationRequested();
 
