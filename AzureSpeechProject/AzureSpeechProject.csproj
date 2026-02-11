@@ -117,4 +117,8 @@
     <ItemGroup>
         <None Include="..\README.md" Pack="true" PackagePath="\"/>
     </ItemGroup>
+
+    <PropertyGroup>
+        <NoWarn>$(NoWarn);CA539</NoWarn>
+    </PropertyGroup>
 </Project>
