@@ -28,8 +28,8 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
     [Reactive] public string CurrentTranslation { get; private set; } = string.Empty;
     [Reactive] public bool IsRecording { get; set; }
     [Reactive] public bool EnableTranslation { get; set; }
-    [Reactive] public string SelectedTargetLanguage { get; set; } = "it";
-    [Reactive] public string TranslationHeader { get; set; } = "Translation (Italian)";
+    [Reactive] public string SelectedTargetLanguage { get; set; } = string.Empty;
+    [Reactive] public string TranslationHeader { get; set; } = "Translation";
     [Reactive] public string Status { get; set; } = "Ready to record";
     [Reactive] public TranscriptFormat SelectedOutputFormat { get; set; } = TranscriptFormat.Text;
 
@@ -78,10 +78,29 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
         _canClear = canSaveOrClear.ToProperty(this, x => x.CanClear);
         ClearCommand = ReactiveCommand.Create(ClearTranscript, canSaveOrClear);
 
-        this.WhenAnyValue(x => x.SelectedTargetLanguage).Subscribe(lang =>
-        {
-            TranslationHeader = $"Translation ({SupportedLanguages.LanguageNames.GetValueOrDefault(lang, lang)})";
-        });
+        this.WhenAnyValue(x => x.EnableTranslation)
+            .Subscribe(enabled =>
+            {
+                if (enabled && string.IsNullOrEmpty(SelectedTargetLanguage))
+                {
+                    SelectedTargetLanguage = "it";
+                }
+            });
+
+        this.WhenAnyValue(x => x.SelectedTargetLanguage, x => x.EnableTranslation)
+            .Subscribe(tuple =>
+            {
+                var (lang, enabled) = tuple;
+                if (!enabled)
+                {
+                    TranslationHeader = "Translation (Disabled)";
+                }
+                else
+                {
+                    TranslationHeader =
+                        $"Translation ({SupportedLanguages.LanguageNames.GetValueOrDefault(lang, lang)})";
+                }
+            });
 
         this.WhenActivated(disposables =>
         {
