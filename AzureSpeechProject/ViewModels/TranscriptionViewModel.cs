@@ -28,6 +28,8 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
     [Reactive] public string CurrentTranslation { get; private set; } = string.Empty;
     [Reactive] public bool IsRecording { get; set; }
     [Reactive] public bool EnableTranslation { get; set; }
+    [Reactive] public bool IncludeTimestamps { get; set; } = true;
+    [Reactive] public bool DetectSpeakers { get; set; }
     [Reactive] public string SelectedTargetLanguage { get; set; } = string.Empty;
     [Reactive] public string TranslationHeader { get; set; } = "Translation";
     [Reactive] public string Status { get; set; } = "Ready to record";
@@ -101,6 +103,11 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
                         $"Translation ({SupportedLanguages.LanguageNames.GetValueOrDefault(lang, lang)})";
                 }
             });
+
+        this.WhenAnyValue(x => x.IncludeTimestamps)
+            .Skip(1)
+            .Where(_ => !IsRecording)
+            .Subscribe(_ => RefreshTranscriptDisplay());
 
         this.WhenActivated(disposables =>
         {
@@ -196,13 +203,71 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
     private void HandleTranscriptionUpdated(TranscriptionSegmentEventArgs e)
     {
         _document.Segments.Add(e.Segment);
-        CurrentTranscript += $"[{e.Segment.Timestamp:HH:mm:ss}] {e.Segment.Text}{Environment.NewLine}";
-        Status = $"Transcribing... (Segments: {_document.Segments.Count})";
+
+        if (IncludeTimestamps)
+        {
+            var speakerPrefix = !string.IsNullOrEmpty(e.Segment.SpeakerId)
+                ? $"Speaker {e.Segment.SpeakerId}: "
+                : "";
+            CurrentTranscript +=
+                $"[{e.Segment.Timestamp:HH:mm:ss}] {speakerPrefix}{e.Segment.Text}{Environment.NewLine}";
+        }
+        else
+        {
+            var speakerPrefix = !string.IsNullOrEmpty(e.Segment.SpeakerId)
+                ? $"Speaker {e.Segment.SpeakerId}: "
+                : "";
+            CurrentTranscript += $"{speakerPrefix}{e.Segment.Text}{Environment.NewLine}";
+        }
+
+        var speakerInfo = DetectSpeakers && !string.IsNullOrEmpty(e.Segment.SpeakerId)
+            ? $", Speaker: {e.Segment.SpeakerId}"
+            : "";
+        Status = $"Transcribing... (Segments: {_document.Segments.Count}{speakerInfo})";
     }
 
     private void HandleTranslationUpdated(TranslationResultEventArgs e)
     {
-        CurrentTranslation += $"[{e.Result.Timestamp:HH:mm:ss}] {e.Result.TranslatedText}{Environment.NewLine}";
+        if (IncludeTimestamps)
+        {
+            CurrentTranslation += $"[{e.Result.Timestamp:HH:mm:ss}] {e.Result.TranslatedText}{Environment.NewLine}";
+        }
+        else
+        {
+            CurrentTranslation += $"{e.Result.TranslatedText}{Environment.NewLine}";
+        }
+    }
+
+    private void RefreshTranscriptDisplay()
+    {
+        if (_document.Segments.Count == 0)
+            return;
+
+        var newTranscript = new System.Text.StringBuilder();
+        foreach (var segment in _document.Segments)
+        {
+            if (IncludeTimestamps)
+            {
+                var speakerPrefix = !string.IsNullOrEmpty(segment.SpeakerId)
+                    ? $"Speaker {segment.SpeakerId}: "
+                    : "";
+#pragma warning disable CA1305
+                newTranscript.AppendLine($"[{segment.Timestamp:HH:mm:ss}] {speakerPrefix}{segment.Text}");
+#pragma warning restore CA1305
+            }
+            else
+            {
+                var speakerPrefix = !string.IsNullOrEmpty(segment.SpeakerId)
+                    ? $"Speaker {segment.SpeakerId}: "
+                    : "";
+#pragma warning disable CA1305
+                newTranscript.AppendLine($"{speakerPrefix}{segment.Text}");
+#pragma warning restore CA1305
+            }
+        }
+
+        CurrentTranscript = newTranscript.ToString();
+        _logger.Log($"Transcript display refreshed with IncludeTimestamps={IncludeTimestamps}");
     }
 
     private async Task StartRecordingAsync()
@@ -224,7 +289,9 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
             {
                 Language = settings.SpeechLanguage,
                 EnableProfanityFilter = true,
-                EnableWordLevelTimestamps = true
+                EnableWordLevelTimestamps = true,
+                IncludeTimestamps = IncludeTimestamps,
+                DetectSpeakers = DetectSpeakers
             };
 
             await _transcriptionService.StartTranscriptionAsync(options, _recordingCts.Token).ConfigureAwait(false);
@@ -239,8 +306,9 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
 
             await _audioCaptureService.StartCapturingAsync(_recordingCts.Token).ConfigureAwait(false);
 
-            Status = "Recording in progress... Speak now!";
-            _logger.Log("All services started successfully.");
+            var featuresInfo = DetectSpeakers ? " (Speaker detection enabled)" : "";
+            Status = $"Recording in progress... Speak now!{featuresInfo}";
+            _logger.Log($"All services started successfully. DetectSpeakers={DetectSpeakers}");
         }
         catch (Exception ex)
         {
@@ -338,6 +406,8 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
 
         try
         {
+            _document.IncludeTimestamps = IncludeTimestamps;
+
             var filePath = await _fileService.SaveTranscriptAsync(
                 _document,
                 SelectedOutputFormat,
@@ -352,7 +422,8 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
                 {
                     Language = SelectedTargetLanguage,
                     StartTime = _document.StartTime,
-                    EndTime = _document.EndTime
+                    EndTime = _document.EndTime,
+                    IncludeTimestamps = IncludeTimestamps
                 };
 
                 var lines = CurrentTranslation.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
@@ -400,12 +471,12 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
         }
     }
 
-    private static bool TryParseTranslationLine(string line, out DateTime timestamp, out string text)
+    private bool TryParseTranslationLine(string line, out DateTime timestamp, out string text)
     {
         timestamp = DateTime.Now;
         text = line;
 
-        if (line.StartsWith('[') && line.Contains(']', StringComparison.Ordinal))
+        if (IncludeTimestamps && line.StartsWith('[') && line.Contains(']', StringComparison.Ordinal))
         {
             var parts = line.Split(']', 2);
             if (parts.Length == 2)
@@ -420,7 +491,7 @@ internal sealed class TranscriptionViewModel : ReactiveObject, IActivatableViewM
             }
         }
 
-        return false;
+        return !IncludeTimestamps;
     }
 
     private void ClearTranscript()

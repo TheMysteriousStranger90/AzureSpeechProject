@@ -9,10 +9,11 @@ internal sealed class TranscriptionDocument
     public string Language { get; set; } = "en-US";
     public DateTime StartTime { get; set; } = DateTime.Now;
     public DateTime? EndTime { get; set; }
+    public bool IncludeTimestamps { get; set; } = true;
 
     public string GetTextTranscript()
     {
-        return string.Join(Environment.NewLine, Segments.Select(s => s.ToString()));
+        return string.Join(Environment.NewLine, Segments.Select(s => s.ToFormattedString(IncludeTimestamps)));
     }
 
     public string GetSrtTranscript()
@@ -30,7 +31,13 @@ internal sealed class TranscriptionDocument
             string timeLine = string.Format(CultureInfo.InvariantCulture, "{0} --> {1}",
                 FormatSrtTime(startTime), FormatSrtTime(endTime));
             srtBuilder.AppendLine(timeLine);
-            srtBuilder.AppendLine(segment.Text);
+
+            var speakerPrefix = !string.IsNullOrEmpty(segment.SpeakerId)
+                ? $"Speaker {segment.SpeakerId}: "
+                : "";
+#pragma warning disable CA1305
+            srtBuilder.AppendLine($"{speakerPrefix}{segment.Text}");
+#pragma warning restore CA1305
             srtBuilder.AppendLine();
         }
 

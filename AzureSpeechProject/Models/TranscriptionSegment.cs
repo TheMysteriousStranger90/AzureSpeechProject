@@ -9,4 +9,18 @@ internal sealed class TranscriptionSegment
 
     public override string ToString() =>
         $"[{Timestamp:HH:mm:ss}] {(string.IsNullOrEmpty(SpeakerId) ? "" : $"Speaker {SpeakerId}: ")}{Text}";
+
+    public string ToFormattedString(bool includeTimestamps)
+    {
+        var speakerPrefix = string.IsNullOrEmpty(SpeakerId) ? "" : $"Speaker {SpeakerId}: ";
+
+        if (includeTimestamps)
+        {
+            return $"[{Timestamp:HH:mm:ss}] {speakerPrefix}{Text}";
+        }
+        else
+        {
+            return $"{speakerPrefix}{Text}";
+        }
+    }
 }
