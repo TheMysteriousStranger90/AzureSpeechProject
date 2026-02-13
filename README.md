@@ -14,24 +14,24 @@ A desktop application built with Avalonia UI that provides real-time speech reco
 
 ## Features
 
-🎤 **Real-time Speech Recognition**
+**Real-time Speech Recognition**
 - High-quality speech-to-text conversion
 - Support for multiple audio formats and sample rates
 
-🌍 **Multi-language Translation**
+**Multi-language Translation**
 - Real-time translation to 9+ languages
 - Support for Russian, Spanish, French, German, Italian, Portuguese, Japanese, Korean, and Chinese.
 - Side-by-side original and translated text display
 
-💾 **Flexible Export Options**
+**Flexible Export Options**
 - Save transcripts in multiple formats (TXT, JSON, SRT)
 - Automatic timestamping for all segments
 - Organized file management with custom output directories
 
-🔒 **Secure Credential Management**
+**Secure Credential Management**
 - Encrypted storage of Azure Speech Service keys
 
-⚙️ **Advanced Audio Configuration**
+⚙**Advanced Audio Configuration**
 - Customizable sample rates (8kHz to 48kHz)
 - Bit depth options (8-bit to 32-bit)
 - Mono/stereo channel selection
@@ -80,7 +80,7 @@ A desktop application built with Avalonia UI that provides real-time speech reco
 2. **Configure Azure Speech Service**
     - **Region**: Enter your Azure Speech Service region (e.g., `eastus`, `westeurope`)
     - **Key**: Enter your Azure Speech Service key
-    - Use the 🔒 Show/Hide button to verify your key entry
+    - Use the Show/Hide button to verify your key entry
 
 3. **Audio Settings** (Optional)
     - **Sample Rate**: 16000 Hz (recommended for Azure)
