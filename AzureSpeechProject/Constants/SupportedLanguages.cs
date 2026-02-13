@@ -20,5 +20,5 @@ internal static class SupportedLanguages
         LanguageNames.Keys.ToList();
 
     public static readonly IReadOnlyList<string> SpeechRecognitionLanguages =
-        new List<string> { "en-US", "en-GB", "en-CA", "en-AU" };
+        new List<string> { "en-US" };
 }
