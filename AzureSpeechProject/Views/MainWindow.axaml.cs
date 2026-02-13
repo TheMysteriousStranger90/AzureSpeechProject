@@ -1,4 +1,3 @@
-using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.ReactiveUI;
 using AzureSpeechProject.ViewModels;
@@ -7,7 +6,7 @@ using System.Reactive.Disposables;
 
 namespace AzureSpeechProject.Views;
 
-public partial class MainWindow : ReactiveWindow<MainWindowViewModel>
+internal sealed partial class MainWindow : ReactiveWindow<MainWindowViewModel>
 {
     public MainWindow()
     {
@@ -15,11 +14,21 @@ public partial class MainWindow : ReactiveWindow<MainWindowViewModel>
 
         this.WhenActivated(disposables =>
         {
-            if (DataContext is MainWindowViewModel viewModel)
+            if (ViewModel != null)
             {
-                viewModel.Activator.Activate();
+                ViewModel.Activator.Activate();
 
-                Disposable.Create(() => viewModel.Activator.Deactivate())
+                Disposable.Create(() => ViewModel.Activator.Deactivate())
+                    .DisposeWith(disposables);
+
+                this.Bind(ViewModel,
+                        vm => vm.CurrentWindowState,
+                        v => v.WindowState)
+                    .DisposeWith(disposables);
+
+                this.OneWayBind(ViewModel,
+                        vm => vm.MaximizeButtonIcon,
+                        v => v.MaximizeButton.Content)
                     .DisposeWith(disposables);
             }
         });
@@ -35,29 +44,9 @@ public partial class MainWindow : ReactiveWindow<MainWindowViewModel>
         }
     }
 
-    public void MinimizeButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        ArgumentNullException.ThrowIfNull(e);
-
-        WindowState = WindowState.Minimized;
-    }
-
-    public void MaximizeButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        ArgumentNullException.ThrowIfNull(e);
-
-        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-
-        if (this.FindControl<Button>("MaximizeButton") is Button maxButton)
-        {
-            maxButton.Content = WindowState == WindowState.Maximized ? "🗗" : "🗖";
-        }
-    }
-
     public void CloseButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         ArgumentNullException.ThrowIfNull(e);
-
         Close();
     }
 }

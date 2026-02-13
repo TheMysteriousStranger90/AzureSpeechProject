@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using AzureSpeechProject.Constants;
+using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
 
@@ -40,7 +41,8 @@ internal sealed class TranscriptFileService : ITranscriptFileService
             _ => FileConstants.TextExtension
         };
 
-        string filePath = await GenerateTranscriptFilePathAsync(extension, translatedLanguage, cancellationToken).ConfigureAwait(false);
+        string filePath = await GenerateTranscriptFilePathAsync(extension, translatedLanguage, cancellationToken)
+            .ConfigureAwait(false);
 
         try
         {
@@ -58,7 +60,8 @@ internal sealed class TranscriptFileService : ITranscriptFileService
                 _ => transcript.GetTextTranscript()
             };
 
-            await File.WriteAllTextAsync(filePath, content, System.Text.Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+            await File.WriteAllTextAsync(filePath, content, System.Text.Encoding.UTF8, cancellationToken)
+                .ConfigureAwait(false);
 
             string logMessage = !string.IsNullOrEmpty(translatedLanguage)
                 ? $"Saved {translatedLanguage} translation to {filePath}"
@@ -92,10 +95,7 @@ internal sealed class TranscriptFileService : ITranscriptFileService
 
             if (string.IsNullOrWhiteSpace(outputDirectory))
             {
-                outputDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "Azure Speech Services",
-                    "Transcripts");
+                outputDirectory = PathConstants.DefaultOutputDirectory;
             }
 
             if (!Directory.Exists(outputDirectory))

@@ -1,6 +1,6 @@
-﻿namespace AzureSpeechProject.Models;
+﻿namespace AzureSpeechProject.Models.Events;
 
-public sealed class AudioCapturedEventArgs : EventArgs
+internal sealed class AudioCapturedEventArgs : EventArgs
 {
     private readonly byte[] _audioData;
 

@@ -13,21 +13,14 @@ internal sealed class App : Application
     private readonly ServiceProvider? _serviceProvider;
     private readonly ILogger? _logger;
 
-    public App()
+    public App(ServiceProvider? serviceProvider = null)
     {
-    }
+        _serviceProvider = serviceProvider;
+        _logger = serviceProvider?.GetService<ILogger>();
 
-    public App(ServiceProvider serviceProvider)
-    {
-        try
+        if (serviceProvider != null)
         {
-            _serviceProvider = serviceProvider;
-            _logger = _serviceProvider?.GetService<ILogger>();
-        }
-        catch (InvalidOperationException ex)
-        {
-            Console.WriteLine($"Error in App constructor: {ex.Message}");
-            throw;
+            _logger?.Log("App initialized with ServiceProvider");
         }
     }
 
@@ -40,8 +33,7 @@ internal sealed class App : Application
         }
         catch (Exception ex)
         {
-            _logger?.Log($"Error loading XAML: {ex.Message}");
-            Console.WriteLine($"Error loading XAML: {ex}");
+            _logger?.Log($"Critical error loading XAML: {ex.Message}");
             throw;
         }
     }
@@ -50,42 +42,14 @@ internal sealed class App : Application
     {
         try
         {
-            _logger?.Log("Framework initialization completed");
+            _logger?.Log("Framework initialization started");
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                if (_serviceProvider != null)
-                {
-                    try
-                    {
-                        var mainViewModel = _serviceProvider.GetRequiredService<MainWindowViewModel>();
+                desktop.MainWindow = CreateMainWindow();
 
-                        desktop.MainWindow = new MainWindow
-                        {
-                            DataContext = mainViewModel
-                        };
-
-                        _logger?.Log("Main window created with ViewModel successfully");
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        _logger?.Log($"Error creating main window with ViewModel: {ex.Message}");
-                        Console.WriteLine($"Error creating main window: {ex}");
-
-                        desktop.MainWindow = new MainWindow();
-                        _logger?.Log("Created fallback main window without ViewModel");
-                    }
-                }
-                else
-                {
-                    desktop.MainWindow = new MainWindow();
-                    _logger?.Log("Created main window without ServiceProvider (Design mode)");
-                }
-
-                desktop.ShutdownRequested += (s, e) =>
-                {
-                    _logger?.Log("Application shutdown requested");
-                };
+                desktop.ShutdownRequested += OnShutdownRequested;
+                desktop.Exit += OnExit;
             }
 
             base.OnFrameworkInitializationCompleted();
@@ -94,8 +58,46 @@ internal sealed class App : Application
         catch (Exception ex)
         {
             _logger?.Log($"Fatal error during framework initialization: {ex.Message}");
-            Console.WriteLine($"Fatal error: {ex}");
             throw;
         }
+    }
+
+    private MainWindow CreateMainWindow()
+    {
+        if (_serviceProvider == null)
+        {
+            _logger?.Log("Creating MainWindow without ServiceProvider (Design mode)");
+            return new MainWindow();
+        }
+
+        try
+        {
+            var mainViewModel = _serviceProvider.GetRequiredService<MainWindowViewModel>();
+
+            var window = new MainWindow
+            {
+                DataContext = mainViewModel
+            };
+
+            _logger?.Log("MainWindow created with ViewModel successfully");
+            return window;
+        }
+        catch (Exception ex)
+        {
+            _logger?.Log($"Error creating MainWindow with ViewModel: {ex.Message}");
+            _logger?.Log("Creating fallback MainWindow without ViewModel");
+
+            return new MainWindow();
+        }
+    }
+
+    private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
+    {
+        _logger?.Log("Application shutdown requested");
+    }
+
+    private void OnExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
+    {
+        _logger?.Log($"Application exiting with code: {e.ApplicationExitCode}");
     }
 }

@@ -33,18 +33,34 @@
                 </Button>
             </StackPanel>
 
-            <!-- Translation controls -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+            <!-- Translation and feature controls -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
                 <Border Background="{DynamicResource AzurePrimaryBlue}" CornerRadius="4" Padding="8,4">
                     <CheckBox IsChecked="{Binding EnableTranslation}" Content="Enable Translation" />
                 </Border>
-                <ComboBox ItemsSource="{Binding AvailableLanguages}" SelectedItem="{Binding SelectedTargetLanguage}" IsEnabled="{Binding EnableTranslation}" IsVisible="{Binding EnableTranslation}">
+                <ComboBox ItemsSource="{Binding AvailableLanguages}"
+                          SelectedItem="{Binding SelectedTargetLanguage}"
+                          IsEnabled="{Binding EnableTranslation}"
+                          IsVisible="{Binding EnableTranslation}"
+                          MinWidth="120">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding}" />
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
+
+                <Border Background="{DynamicResource AzurePrimaryBlue}" CornerRadius="4" Padding="8,4">
+                    <CheckBox IsChecked="{Binding IncludeTimestamps}"
+                              Content="Include Timestamps"
+                              ToolTip.Tip="Show timestamps in transcript output" />
+                </Border>
+
+                <Border Background="{DynamicResource AzurePrimaryBlue}" CornerRadius="4" Padding="8,4">
+                    <CheckBox IsChecked="{Binding DetectSpeakers}"
+                              Content="Detect Speakers"
+                              ToolTip.Tip="Enable speaker diarization (identifies different speakers)" />
+                </Border>
             </StackPanel>
 
             <!-- Output format -->
@@ -63,7 +79,14 @@
                         <TextBlock Text="Original Speech (English)" />
                     </Border>
                     <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                        <TextBox Text="{Binding CurrentTranscript, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Margin="8" Background="White" Padding="8" BorderThickness="0" />
+                        <TextBox Text="{Binding CurrentTranscript, Mode=OneWay}"
+                                 IsReadOnly="True"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"
+                                 Margin="8"
+                                 Background="White"
+                                 Padding="8"
+                                 BorderThickness="0" />
                     </ScrollViewer>
                 </Grid>
             </Border>
@@ -74,13 +97,37 @@
                     <Border Grid.Row="0" Classes="transcript-header">
                         <TextBlock Text="{Binding TranslationHeader}" />
                     </Border>
-                    <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12" IsVisible="{Binding !EnableTranslation}">
-                        <PathIcon Data="M12,18H6V14H12M21,14V12L20,7H4L3,12V14H4V20H14V14H18V20H20V14M20,4H4V6H20V4Z" Width="48" Height="48" Foreground="{DynamicResource AzurePrimaryBlue}" />
-                        <TextBlock Text="Translation is disabled" FontWeight="SemiBold" FontSize="18" HorizontalAlignment="Center" />
-                        <TextBlock Text="Enable translation in the controls above to see real-time translations" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" />
+                    <StackPanel Grid.Row="1"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Center"
+                                Spacing="12"
+                                IsVisible="{Binding !EnableTranslation}">
+                        <PathIcon Data="M12,18H6V14H12M21,14V12L20,7H4L3,12V14H4V20H14V14H18V20H20V14M20,4H4V6H20V4Z"
+                                  Width="48"
+                                  Height="48"
+                                  Foreground="{DynamicResource AzurePrimaryBlue}" />
+                        <TextBlock Text="Translation is disabled"
+                                   FontWeight="SemiBold"
+                                   FontSize="18"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="Enable translation in the controls above to see real-time translations"
+                                   TextWrapping="Wrap"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   Foreground="{DynamicResource SecondaryTextBrush}" />
                     </StackPanel>
-                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" IsVisible="{Binding EnableTranslation}">
-                        <TextBox Text="{Binding CurrentTranslation, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Margin="8" Background="White" Padding="8" BorderThickness="0" />
+                    <ScrollViewer Grid.Row="1"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto"
+                                  IsVisible="{Binding EnableTranslation}">
+                        <TextBox Text="{Binding CurrentTranslation, Mode=OneWay}"
+                                 IsReadOnly="True"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"
+                                 Margin="8"
+                                 Background="White"
+                                 Padding="8"
+                                 BorderThickness="0" />
                     </ScrollViewer>
                 </Grid>
             </Border>
@@ -103,7 +150,12 @@
         </StackPanel>
 
         <!-- Recording indicator overlay -->
-        <Border Grid.Row="0" Grid.RowSpan="3" Background="{DynamicResource RecordingOverlayBrush}" IsVisible="{Binding IsRecording}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Border Grid.Row="0"
+                Grid.RowSpan="3"
+                Background="{DynamicResource RecordingOverlayBrush}"
+                IsVisible="{Binding IsRecording}"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
                 <Ellipse Width="16" Height="16" Fill="{DynamicResource AzureRed}" />
                 <TextBlock Text="Recording in progress..." Foreground="White" FontWeight="SemiBold" />

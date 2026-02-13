@@ -1,13 +1,15 @@
-﻿using System.Reactive.Disposables;
+﻿using System.Reactive;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using Avalonia.Controls;
+using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
-using AzureSpeechProject.Services;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
 namespace AzureSpeechProject.ViewModels;
 
-public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDisposable
+internal sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDisposable
 {
     private readonly ILogger _logger;
     private readonly INetworkStatusService _networkStatusService;
@@ -22,6 +24,12 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel,
     [Reactive] public SettingsViewModel SettingsViewModel { get; set; }
     [Reactive] public bool IsInternetAvailable { get; private set; } = true;
     [Reactive] public bool IsMicrophoneAvailable { get; private set; } = true;
+    [Reactive] public WindowState CurrentWindowState { get; set; } = WindowState.Normal;
+    [Reactive] public string MaximizeButtonIcon { get; private set; } = "🗖";
+
+    public ReactiveCommand<Unit, Unit> MinimizeCommand { get; }
+    public ReactiveCommand<Unit, Unit> MaximizeCommand { get; }
+    public ReactiveCommand<Unit, Unit> CloseCommand { get; }
 
     public MainWindowViewModel(
         ILogger logger,
@@ -38,6 +46,10 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel,
         _microphonePermissionService = microphonePermissionService ??
                                        throw new ArgumentNullException(nameof(microphonePermissionService));
 
+        MinimizeCommand = ReactiveCommand.Create(ExecuteMinimize);
+        MaximizeCommand = ReactiveCommand.Create(ExecuteMaximize);
+        CloseCommand = ReactiveCommand.Create(() => { });
+
         try
         {
             this.WhenActivated(disposables =>
@@ -47,13 +59,22 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel,
                     _initializationCts = new CancellationTokenSource();
                     var token = _initializationCts.Token;
 
+                    this.WhenAnyValue(x => x.CurrentWindowState)
+                        .ObserveOn(RxApp.MainThreadScheduler)
+                        .Subscribe(state =>
+                        {
+                            MaximizeButtonIcon = state == WindowState.Maximized ? "🗗" : "🗖";
+                            _logger.Log($"Window state changed to: {state}");
+                        })
+                        .DisposeWith(disposables);
+
                     Observable.FromAsync(async () =>
                         {
                             try
                             {
                                 StatusMessage = "Loading settings...";
                                 await SettingsViewModel.LoadSettingsAsync(token).ConfigureAwait(false);
-                                _logger.Log("Settings preloaded in MainWindowViewModel FIRST");
+                                _logger.Log("Settings preloaded in MainWindowViewModel");
                                 return true;
                             }
                             catch (OperationCanceledException)
@@ -72,26 +93,26 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel,
                             }
 
                             return Observable.CombineLatest(
-                                Observable.FromAsync(() => CheckMicrophoneAccess(token))
-                                    .Catch<bool, Exception>(ex =>
-                                    {
-                                        _logger.Log($"Error checking microphone: {ex.Message}");
-                                        return Observable.Return(false);
-                                    }),
-                                Observable.FromAsync(() => CheckInternetConnectivity(token))
-                                    .Catch<bool, Exception>(ex =>
-                                    {
-                                        _logger.Log($"Error checking internet: {ex.Message}");
-                                        return Observable.Return(false);
-                                    }),
-                                (mic, internet) => new { Mic = mic, Internet = internet })
-                            .Select(result =>
-                            {
-                                IsMicrophoneAvailable = result.Mic;
-                                IsInternetAvailable = result.Internet;
-                                _logger.Log($"Checks complete - Mic: {result.Mic}, Internet: {result.Internet}");
-                                return true;
-                            });
+                                    Observable.FromAsync(() => CheckMicrophoneAccess(token))
+                                        .Catch<bool, Exception>(ex =>
+                                        {
+                                            _logger.Log($"Error checking microphone: {ex.Message}");
+                                            return Observable.Return(false);
+                                        }),
+                                    Observable.FromAsync(() => CheckInternetConnectivity(token))
+                                        .Catch<bool, Exception>(ex =>
+                                        {
+                                            _logger.Log($"Error checking internet: {ex.Message}");
+                                            return Observable.Return(false);
+                                        }),
+                                    (mic, internet) => new { Mic = mic, Internet = internet })
+                                .Select(result =>
+                                {
+                                    IsMicrophoneAvailable = result.Mic;
+                                    IsInternetAvailable = result.Internet;
+                                    _logger.Log($"Checks complete - Mic: {result.Mic}, Internet: {result.Internet}");
+                                    return true;
+                                });
                         })
                         .ObserveOn(RxApp.MainThreadScheduler)
                         .Subscribe(
@@ -175,6 +196,20 @@ public sealed class MainWindowViewModel : ReactiveObject, IActivatableViewModel,
             _logger.Log($"Error in MainWindowViewModel constructor: {ex}");
             StatusMessage = "Critical initialization error";
         }
+    }
+
+    private void ExecuteMinimize()
+    {
+        CurrentWindowState = WindowState.Minimized;
+        _logger.Log("Window minimized via command");
+    }
+
+    private void ExecuteMaximize()
+    {
+        CurrentWindowState = CurrentWindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+        _logger.Log($"Window state toggled to: {CurrentWindowState}");
     }
 
     private void UpdateStatusMessage()

@@ -1,5 +1,5 @@
 ﻿using System.Globalization;
-using AzureSpeechProject.Helpers;
+using Avalonia.Threading;
 
 namespace AzureSpeechProject.Logger;
 
@@ -31,7 +31,7 @@ internal sealed class FileLogger : ILogger, IDisposable
 
             try
             {
-                MainThreadHelper.InvokeOnMainThread(() => { });
+                InvokeOnMainThread(() => { });
             }
             catch (InvalidOperationException)
             {
@@ -103,8 +103,21 @@ internal sealed class FileLogger : ILogger, IDisposable
             {
                 Directory.CreateDirectory(tempLogsDir);
             }
+
             var date = DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
             _logFilePath = Path.Combine(tempLogsDir, $"azure_speech_{date}.log");
+        }
+    }
+
+    private static void InvokeOnMainThread(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
         }
     }
 

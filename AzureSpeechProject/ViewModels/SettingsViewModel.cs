@@ -2,15 +2,16 @@
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using Avalonia.Platform.Storage;
+using AzureSpeechProject.Constants;
+using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
-using AzureSpeechProject.Services;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
 namespace AzureSpeechProject.ViewModels;
 
-public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, IDisposable
+internal sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, IDisposable
 {
     private readonly ILogger _logger;
     private readonly ISettingsService _settingsService;
@@ -22,22 +23,19 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
 
     [Reactive] public string Region { get; set; } = string.Empty;
     [Reactive] public string Key { get; set; } = string.Empty;
-    [Reactive] public bool ShowKey { get; set; } = false;
+    [Reactive] public bool ShowKey { get; set; }
 
-    [Reactive] public string SelectedSpeechLanguage { get; set; } = "en-US";
+    [Reactive] public string SelectedSpeechLanguage { get; set; } = SupportedLanguages.SpeechRecognitionLanguages[0];
 
-    public IReadOnlyList<string> AvailableSpeechLanguages { get; } = new List<string>
-    {
-        "en-US",
-    };
+    public IReadOnlyList<string> AvailableSpeechLanguages { get; } = SupportedLanguages.SpeechRecognitionLanguages;
 
-    [Reactive] public int SelectedSampleRate { get; set; } = 16000;
+    [Reactive] public int SelectedSampleRate { get; set; } = AudioConstants.DefaultSampleRate;
     public IReadOnlyList<int> SampleRates { get; } = new List<int> { 8000, 16000, 44100, 48000 };
 
-    [Reactive] public int SelectedBitsPerSample { get; set; } = 16;
+    [Reactive] public int SelectedBitsPerSample { get; set; } = AudioConstants.DefaultBitsPerSample;
     public IReadOnlyList<int> BitsPerSample { get; } = new List<int> { 8, 16, 24, 32 };
 
-    [Reactive] public int SelectedChannels { get; set; } = 1;
+    [Reactive] public int SelectedChannels { get; set; } = AudioConstants.DefaultChannels;
     public IReadOnlyList<int> Channels { get; } = new List<int> { 1, 2 };
 
     [Reactive] public string OutputDirectory { get; set; } = string.Empty;
@@ -65,10 +63,7 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
 
         if (string.IsNullOrWhiteSpace(OutputDirectory))
         {
-            OutputDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "Azure Speech Services",
-                "Transcripts");
+            OutputDirectory = PathConstants.DefaultOutputDirectory;
         }
 
         this.WhenActivated(disposables =>
@@ -115,18 +110,20 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
             return;
         }
 
-        try
-        {
-            var savedSettings = _settingsService.LoadSettingsAsync(CancellationToken.None).GetAwaiter().GetResult();
-            var credentialsMatch = savedSettings.Region == Region && savedSettings.Key == Key;
-            AreCredentialsSaved = credentialsMatch;
-            _logger.Log($"Credentials match saved state: {credentialsMatch}");
-        }
-        catch (Exception ex)
-        {
-            _logger.Log($"Error checking saved credentials: {ex.Message}");
-            AreCredentialsSaved = false;
-        }
+        Observable
+            .FromAsync(() => _settingsService.LoadSettingsAsync(CancellationToken.None))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(
+                savedSettings =>
+                {
+                    var credentialsMatch = savedSettings.Region == Region && savedSettings.Key == Key;
+                    AreCredentialsSaved = credentialsMatch;
+                },
+                ex =>
+                {
+                    _logger.Log($"Error checking saved credentials: {ex.Message}");
+                    AreCredentialsSaved = false;
+                });
     }
 
     public async Task LoadSettingsAsync(CancellationToken cancellationToken = default)
@@ -138,11 +135,10 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
             var settings = await _settingsService.LoadSettingsAsync(cancellationToken).ConfigureAwait(false);
 
             _logger.Log($"Loaded from service - OutputDirectory: '{settings.OutputDirectory}'");
-            _logger.Log($"Current ViewModel OutputDirectory before update: '{OutputDirectory}'");
 
             Region = settings.Region ?? string.Empty;
             Key = settings.Key ?? string.Empty;
-            SelectedSpeechLanguage = settings.SpeechLanguage ?? "en-US";
+            SelectedSpeechLanguage = settings.SpeechLanguage ?? SupportedLanguages.SpeechRecognitionLanguages[0];
             SelectedSampleRate = settings.SampleRate;
             SelectedBitsPerSample = settings.BitsPerSample;
             SelectedChannels = settings.Channels;
@@ -150,20 +146,11 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
             if (!string.IsNullOrWhiteSpace(settings.OutputDirectory))
             {
                 OutputDirectory = settings.OutputDirectory;
-                _logger.Log($"✅ Set OutputDirectory from settings: '{OutputDirectory}'");
             }
             else
             {
-                var defaultPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "Azure Speech Services",
-                    "Transcripts");
-
-                OutputDirectory = defaultPath;
-                _logger.Log($"📁 Set default OutputDirectory: '{OutputDirectory}'");
+                OutputDirectory = PathConstants.DefaultOutputDirectory;
             }
-
-            _logger.Log($"Final ViewModel OutputDirectory: '{OutputDirectory}'");
 
             var hasCredentials = !string.IsNullOrWhiteSpace(Region) && !string.IsNullOrWhiteSpace(Key);
             AreCredentialsSaved = hasCredentials;
@@ -174,18 +161,24 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
             _logger.Log("Settings loading was cancelled");
             throw;
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             _logger.Log($"Error loading settings in ViewModel: {ex.Message}");
-            _logger.Log($"Stack trace: {ex.StackTrace}");
 
             if (string.IsNullOrWhiteSpace(OutputDirectory))
             {
-                OutputDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "Azure Speech Services",
-                    "Transcripts");
-                _logger.Log($"Set fallback OutputDirectory: '{OutputDirectory}'");
+                OutputDirectory = PathConstants.DefaultOutputDirectory;
+            }
+
+            throw;
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            _logger.Log($"JSON error loading settings: {ex.Message}");
+
+            if (string.IsNullOrWhiteSpace(OutputDirectory))
+            {
+                OutputDirectory = PathConstants.DefaultOutputDirectory;
             }
 
             throw;
@@ -198,13 +191,12 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
 
     private async Task SaveSettingsAsync()
     {
-        using var saveCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var saveCts = new CancellationTokenSource(TimeoutConstants.OperationTimeout);
 
         try
         {
-            _logger.Log("SaveSettingsAsync called in ViewModel");
             _logger.Log(
-                $"Current settings - Region: {Region}, OutputDirectory: {OutputDirectory}, SpeechLanguage: {SelectedSpeechLanguage}");
+                $"Saving - Region: {Region}, OutputDirectory: {OutputDirectory}, SpeechLanguage: {SelectedSpeechLanguage}");
 
             var settings = new AppSettings
             {
@@ -217,18 +209,16 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
                 OutputDirectory = OutputDirectory
             };
 
-            _logger.Log("Created AppSettings object, calling service SaveSettingsAsync");
             await _settingsService.SaveSettingsAsync(settings, saveCts.Token).ConfigureAwait(false);
 
             var hasCredentials = !string.IsNullOrWhiteSpace(Region) && !string.IsNullOrWhiteSpace(Key);
             AreCredentialsSaved = hasCredentials;
 
-            _logger.Log($"Settings saved from ViewModel successfully - AreCredentialsSaved: {AreCredentialsSaved}");
+            _logger.Log($"Settings saved - AreCredentialsSaved: {AreCredentialsSaved}");
 
             if (_logger is FileLogger fileLogger)
             {
                 fileLogger.UpdateLogPathFromSettings(OutputDirectory);
-                _logger.Log($"Updated log path to use directory: {OutputDirectory}");
             }
         }
         catch (OperationCanceledException)
@@ -236,17 +226,26 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
             _logger.Log("Settings save was cancelled or timed out");
             throw;
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             _logger.Log($"Error saving settings from ViewModel: {ex.Message}");
-            _logger.Log($"Stack trace: {ex.StackTrace}");
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.Log($"Access denied saving settings: {ex.Message}");
+            throw;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.Log($"Invalid operation saving settings: {ex.Message}");
             throw;
         }
     }
 
     private async Task ResetSettingsAsync()
     {
-        using var resetCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var resetCts = new CancellationTokenSource(TimeoutConstants.OperationTimeout);
 
         try
         {
@@ -259,9 +258,19 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
             _logger.Log("Settings reset was cancelled or timed out");
             throw;
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             _logger.Log($"Error resetting settings from ViewModel: {ex.Message}");
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.Log($"Access denied resetting settings: {ex.Message}");
+            throw;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.Log($"Invalid operation resetting settings: {ex.Message}");
             throw;
         }
     }
@@ -304,37 +313,26 @@ public sealed class SettingsViewModel : ReactiveObject, IActivatableViewModel, I
                     if (OutputDirectory != newPath)
                     {
                         OutputDirectory = newPath;
-                        _logger.Log($"OutputDirectory property updated to: {OutputDirectory}");
-
                         await SaveSettingsAsync().ConfigureAwait(false);
                         _logger.Log("Settings automatically saved after directory selection");
                     }
-                    else
-                    {
-                        _logger.Log("Selected directory is the same as current, no changes made");
-                    }
-                }
-                else
-                {
-                    _logger.Log("User cancelled directory selection");
                 }
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.Log($"Error browsing for directory: {ex.Message}");
-            _logger.Log($"Stack trace: {ex.StackTrace}");
 
             if (string.IsNullOrWhiteSpace(OutputDirectory))
             {
-                OutputDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "Azure Speech Services",
-                    "Transcripts");
-
-                _logger.Log($"Set default output directory: {OutputDirectory}");
+                OutputDirectory = PathConstants.DefaultOutputDirectory;
             }
 
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.Log($"Access denied browsing for directory: {ex.Message}");
             throw;
         }
     }

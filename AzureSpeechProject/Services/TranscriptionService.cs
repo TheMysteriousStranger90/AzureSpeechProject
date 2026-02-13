@@ -1,11 +1,14 @@
-﻿using AzureSpeechProject.Logger;
+﻿using AzureSpeechProject.Interfaces;
+using AzureSpeechProject.Logger;
 using AzureSpeechProject.Models;
+using AzureSpeechProject.Models.Events;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
+using Microsoft.CognitiveServices.Speech.Transcription;
 
 namespace AzureSpeechProject.Services;
 
-public sealed class TranscriptionService : IDisposable
+internal sealed class TranscriptionService : IDisposable
 {
     private readonly ISettingsService _settingsService;
     private readonly AudioCaptureService _audioCapture;
@@ -15,6 +18,7 @@ public sealed class TranscriptionService : IDisposable
     private bool _isTranscribing;
     private PushAudioInputStream? _audioInputStream;
     private SpeechRecognizer? _recognizer;
+    private ConversationTranscriber? _conversationTranscriber;
     private bool _disposed;
     private CancellationTokenSource? _transcriptionCts;
     private EventHandler<SessionEventArgs>? _sessionStartedHandler;
@@ -45,8 +49,14 @@ public sealed class TranscriptionService : IDisposable
             return;
         }
 
-        _logger.Log("Starting Azure Speech transcription...");
-        _transcriptionDocument = new TranscriptionDocument { StartTime = DateTime.Now, Language = options.Language };
+        _logger.Log($"Starting Azure Speech transcription (DetectSpeakers={options.DetectSpeakers})...");
+        _transcriptionDocument = new TranscriptionDocument
+        {
+            StartTime = DateTime.Now,
+            Language = options.Language,
+            IncludeTimestamps = options.IncludeTimestamps
+        };
+        bool useSpeakerDetection = options.DetectSpeakers;
 
         try
         {
@@ -59,49 +69,20 @@ public sealed class TranscriptionService : IDisposable
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var speechConfig = SpeechConfig.FromSubscription(settings.Key, settings.Region);
-            speechConfig.SpeechRecognitionLanguage = settings.SpeechLanguage;
-            speechConfig.SetProperty(PropertyId.SpeechServiceResponse_PostProcessingOption, "TrueText");
-            speechConfig.SetProfanity(options.EnableProfanityFilter ? ProfanityOption.Masked : ProfanityOption.Raw);
-
-            _logger.Log(
-                $"Speech config - Language: {speechConfig.SpeechRecognitionLanguage}, Region: {settings.Region}");
-
-            if (options.EnableWordLevelTimestamps)
+            if (useSpeakerDetection)
             {
-                speechConfig.RequestWordLevelTimestamps();
+                await StartConversationTranscriptionAsync(settings, options, cancellationToken).ConfigureAwait(false);
             }
-
-            var audioFormat = AudioStreamFormat.GetWaveFormatPCM(
-                (uint)settings.SampleRate,
-                (byte)settings.BitsPerSample,
-                (byte)settings.Channels);
-
-            _logger.Log(
-                $"Audio format - SampleRate: {settings.SampleRate}, BitsPerSample: {settings.BitsPerSample}, Channels: {settings.Channels}");
-
-            cancellationToken.ThrowIfCancellationRequested();
-
-            _audioInputStream = AudioInputStream.CreatePushStream(audioFormat);
-            var audioConfig = AudioConfig.FromStreamInput(_audioInputStream);
-            _recognizer = new SpeechRecognizer(speechConfig, audioConfig);
-
-            _recognizer.Recognizing += OnRecognizing;
-            _recognizer.Recognized += OnRecognized;
-            _recognizer.Canceled += OnCanceled;
-            _sessionStartedHandler = (s, e) => _logger.Log($"Transcription Session started: {e.SessionId}");
-            _recognizer.SessionStarted += _sessionStartedHandler;
-            _sessionStoppedHandler = (s, e) => _logger.Log($"Transcription Session stopped: {e.SessionId}");
-            _recognizer.SessionStopped += _sessionStoppedHandler;
+            else
+            {
+                await StartBasicTranscriptionAsync(settings, options, cancellationToken).ConfigureAwait(false);
+            }
 
             _logger.Log("📝 Subscribing to AudioCaptured event...");
             _audioCapture.AudioCaptured += OnAudioCaptured;
             _logger.Log("✅ Subscribed to AudioCaptured event");
 
             _transcriptionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-            await _recognizer.StartContinuousRecognitionAsync().ConfigureAwait(false);
-
             _isTranscribing = true;
             _logger.Log("Transcription service is now listening for audio data.");
         }
@@ -111,12 +92,104 @@ public sealed class TranscriptionService : IDisposable
             await CleanupTranscriptionAsync().ConfigureAwait(false);
             throw;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.Log($"Error starting transcription: {ex.Message}");
             await CleanupTranscriptionAsync().ConfigureAwait(false);
             throw;
         }
+        catch (ArgumentException ex)
+        {
+            _logger.Log($"Invalid argument starting transcription: {ex.Message}");
+            await CleanupTranscriptionAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private async Task StartBasicTranscriptionAsync(AppSettings settings, TranscriptionOptions options,
+        CancellationToken cancellationToken)
+    {
+        var speechConfig = SpeechConfig.FromSubscription(settings.Key, settings.Region);
+        speechConfig.SpeechRecognitionLanguage = settings.SpeechLanguage;
+        speechConfig.SetProperty(PropertyId.SpeechServiceResponse_PostProcessingOption, "TrueText");
+        speechConfig.SetProfanity(options.EnableProfanityFilter ? ProfanityOption.Masked : ProfanityOption.Raw);
+
+        _logger.Log($"Speech config - Language: {speechConfig.SpeechRecognitionLanguage}, Region: {settings.Region}");
+
+        if (options.EnableWordLevelTimestamps)
+        {
+            speechConfig.RequestWordLevelTimestamps();
+        }
+
+        var audioFormat = AudioStreamFormat.GetWaveFormatPCM(
+            (uint)settings.SampleRate,
+            (byte)settings.BitsPerSample,
+            (byte)settings.Channels);
+
+        _logger.Log(
+            $"Audio format - SampleRate: {settings.SampleRate}, BitsPerSample: {settings.BitsPerSample}, Channels: {settings.Channels}");
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        _audioInputStream = AudioInputStream.CreatePushStream(audioFormat);
+        var audioConfig = AudioConfig.FromStreamInput(_audioInputStream);
+        _recognizer = new SpeechRecognizer(speechConfig, audioConfig);
+
+        _recognizer.Recognizing += OnRecognizing;
+        _recognizer.Recognized += OnRecognized;
+        _recognizer.Canceled += OnCanceled;
+        _sessionStartedHandler = (s, e) => _logger.Log($"Transcription Session started: {e.SessionId}");
+        _recognizer.SessionStarted += _sessionStartedHandler;
+        _sessionStoppedHandler = (s, e) => _logger.Log($"Transcription Session stopped: {e.SessionId}");
+        _recognizer.SessionStopped += _sessionStoppedHandler;
+
+        await _recognizer.StartContinuousRecognitionAsync().ConfigureAwait(false);
+        _logger.Log("Basic speech recognition started");
+    }
+
+    private async Task StartConversationTranscriptionAsync(AppSettings settings, TranscriptionOptions options,
+        CancellationToken cancellationToken)
+    {
+        var speechConfig = SpeechConfig.FromSubscription(settings.Key, settings.Region);
+        speechConfig.SpeechRecognitionLanguage = settings.SpeechLanguage;
+        speechConfig.SetProperty(PropertyId.SpeechServiceResponse_PostProcessingOption, "TrueText");
+        speechConfig.SetProfanity(options.EnableProfanityFilter ? ProfanityOption.Masked : ProfanityOption.Raw);
+
+        speechConfig.SetProperty(PropertyId.SpeechServiceResponse_DiarizeIntermediateResults, "true");
+
+        _logger.Log(
+            $"Conversation transcription config - Language: {speechConfig.SpeechRecognitionLanguage}, Region: {settings.Region}");
+
+        if (options.EnableWordLevelTimestamps)
+        {
+            speechConfig.RequestWordLevelTimestamps();
+        }
+
+        var audioFormat = AudioStreamFormat.GetWaveFormatPCM(
+            (uint)settings.SampleRate,
+            (byte)settings.BitsPerSample,
+            (byte)settings.Channels);
+
+        _logger.Log(
+            $"Audio format - SampleRate: {settings.SampleRate}, BitsPerSample: {settings.BitsPerSample}, Channels: {settings.Channels}");
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        _audioInputStream = AudioInputStream.CreatePushStream(audioFormat);
+        var audioConfig = AudioConfig.FromStreamInput(_audioInputStream);
+
+        _conversationTranscriber = new ConversationTranscriber(speechConfig, audioConfig);
+
+        _conversationTranscriber.Transcribing += OnConversationTranscribing;
+        _conversationTranscriber.Transcribed += OnConversationTranscribed;
+        _conversationTranscriber.Canceled += OnConversationCanceled;
+        _conversationTranscriber.SessionStarted +=
+            (s, e) => _logger.Log($"Conversation Session started: {e.SessionId}");
+        _conversationTranscriber.SessionStopped +=
+            (s, e) => _logger.Log($"Conversation Session stopped: {e.SessionId}");
+
+        await _conversationTranscriber.StartTranscribingAsync().ConfigureAwait(false);
+        _logger.Log("Conversation transcription with speaker detection started");
     }
 
     private void OnAudioCaptured(object? sender, AudioCapturedEventArgs e)
@@ -129,7 +202,11 @@ public sealed class TranscriptionService : IDisposable
                 _logger.Log($"✅ OnAudioCaptured called - writing {audioData.Length} bytes to recognizer");
                 _audioInputStream.Write(audioData);
             }
-            catch (Exception ex)
+            catch (ObjectDisposedException ex)
+            {
+                _logger.Log($"❌ Audio stream disposed: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 _logger.Log($"❌ Error writing audio data: {ex.Message}");
             }
@@ -166,6 +243,33 @@ public sealed class TranscriptionService : IDisposable
         }
     }
 
+    private void OnConversationTranscribed(object? sender, ConversationTranscriptionEventArgs e)
+    {
+        if (_transcriptionCts?.Token.IsCancellationRequested == true)
+            return;
+
+        _logger.Log(
+            $"Conversation result - Reason: {e.Result.Reason}, Text: '{e.Result.Text}', SpeakerId: '{e.Result.SpeakerId}'");
+
+        if (e.Result.Reason == ResultReason.RecognizedSpeech && !string.IsNullOrWhiteSpace(e.Result.Text))
+        {
+            var segment = new TranscriptionSegment
+            {
+                Text = e.Result.Text,
+                Timestamp = DateTime.Now,
+                Duration = e.Result.Duration,
+                SpeakerId = e.Result.SpeakerId
+            };
+            _transcriptionDocument.Segments.Add(segment);
+            OnTranscriptionUpdated?.Invoke(this, new TranscriptionSegmentEventArgs(segment));
+            _logger.Log($"Transcribed with speaker {segment.SpeakerId}: {segment.Text}");
+        }
+        else if (e.Result.Reason == ResultReason.NoMatch)
+        {
+            _logger.Log("No speech was recognized in the conversation segment");
+        }
+    }
+
     private void OnRecognizing(object? sender, SpeechRecognitionEventArgs e)
     {
         if (_transcriptionCts?.Token.IsCancellationRequested == true)
@@ -177,9 +281,30 @@ public sealed class TranscriptionService : IDisposable
         }
     }
 
+    private void OnConversationTranscribing(object? sender, ConversationTranscriptionEventArgs e)
+    {
+        if (_transcriptionCts?.Token.IsCancellationRequested == true)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(e.Result.Text))
+        {
+            var speakerInfo = !string.IsNullOrEmpty(e.Result.SpeakerId) ? $" [Speaker: {e.Result.SpeakerId}]" : "";
+            _logger.Log($"Transcribing: {e.Result.Text}{speakerInfo}");
+        }
+    }
+
     private void OnCanceled(object? sender, SpeechRecognitionCanceledEventArgs e)
     {
         _logger.Log($"Transcription CANCELED: Reason={e.Reason}");
+        if (e.Reason == CancellationReason.Error)
+        {
+            _logger.Log($"CANCELED: ErrorCode={e.ErrorCode}, ErrorDetails={e.ErrorDetails}");
+        }
+    }
+
+    private void OnConversationCanceled(object? sender, ConversationTranscriptionCanceledEventArgs e)
+    {
+        _logger.Log($"Conversation transcription CANCELED: Reason={e.Reason}");
         if (e.Reason == CancellationReason.Error)
         {
             _logger.Log($"CANCELED: ErrorCode={e.ErrorCode}, ErrorDetails={e.ErrorDetails}");
@@ -205,9 +330,13 @@ public sealed class TranscriptionService : IDisposable
                     _logger.Log("Closing audio input stream...");
                     _audioInputStream.Close();
                 }
-                catch (Exception ex)
+                catch (ObjectDisposedException ex)
                 {
                     _logger.Log($"Error closing audio stream: {ex.Message}");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.Log($"Invalid operation closing audio stream: {ex.Message}");
                 }
             }
 
@@ -239,7 +368,7 @@ public sealed class TranscriptionService : IDisposable
             {
                 _logger.Log("Recognizer already disposed");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 _logger.Log($"Error stopping recognizer: {ex.Message}");
             }
@@ -254,13 +383,38 @@ public sealed class TranscriptionService : IDisposable
             _recognizer = null;
         }
 
+        if (_conversationTranscriber != null)
+        {
+            try
+            {
+                _logger.Log("Stopping conversation transcription...");
+                await _conversationTranscriber.StopTranscribingAsync().ConfigureAwait(false);
+                _logger.Log("Conversation transcription stopped successfully");
+            }
+            catch (ObjectDisposedException)
+            {
+                _logger.Log("Conversation transcriber already disposed");
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.Log($"Error stopping conversation transcriber: {ex.Message}");
+            }
+
+            _conversationTranscriber.Transcribing -= OnConversationTranscribing;
+            _conversationTranscriber.Transcribed -= OnConversationTranscribed;
+            _conversationTranscriber.Canceled -= OnConversationCanceled;
+
+            _conversationTranscriber.Dispose();
+            _conversationTranscriber = null;
+        }
+
         if (_audioInputStream != null)
         {
             try
             {
                 _audioInputStream.Dispose();
             }
-            catch (Exception ex)
+            catch (ObjectDisposedException ex)
             {
                 _logger.Log($"Error disposing audio stream: {ex.Message}");
             }
@@ -277,42 +431,42 @@ public sealed class TranscriptionService : IDisposable
 
     public void Dispose()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    private void Dispose(bool disposing)
-    {
         if (_disposed)
             return;
 
-        if (disposing)
+        try
         {
-            try
+            _transcriptionCts?.Cancel();
+            _transcriptionCts?.Dispose();
+
+            if (_recognizer != null)
             {
-                _transcriptionCts?.Cancel();
-                _transcriptionCts?.Dispose();
-
-                if (_recognizer != null)
-                {
-                    _recognizer.Recognizing -= OnRecognizing;
-                    _recognizer.Recognized -= OnRecognized;
-                    _recognizer.Canceled -= OnCanceled;
-                    if (_sessionStartedHandler != null) _recognizer.SessionStarted -= _sessionStartedHandler;
-                    if (_sessionStoppedHandler != null) _recognizer.SessionStopped -= _sessionStoppedHandler;
-                    _recognizer.Dispose();
-                    _recognizer = null;
-                }
-
-                _audioInputStream?.Dispose();
-                _audioInputStream = null;
-
-                _logger.Log("TranscriptionService disposed");
+                _recognizer.Recognizing -= OnRecognizing;
+                _recognizer.Recognized -= OnRecognized;
+                _recognizer.Canceled -= OnCanceled;
+                if (_sessionStartedHandler != null) _recognizer.SessionStarted -= _sessionStartedHandler;
+                if (_sessionStoppedHandler != null) _recognizer.SessionStopped -= _sessionStoppedHandler;
+                _recognizer.Dispose();
+                _recognizer = null;
             }
-            catch (ObjectDisposedException)
+
+            if (_conversationTranscriber != null)
             {
-                // Already disposed, ignore
+                _conversationTranscriber.Transcribing -= OnConversationTranscribing;
+                _conversationTranscriber.Transcribed -= OnConversationTranscribed;
+                _conversationTranscriber.Canceled -= OnConversationCanceled;
+                _conversationTranscriber.Dispose();
+                _conversationTranscriber = null;
             }
+
+            _audioInputStream?.Dispose();
+            _audioInputStream = null;
+
+            _logger.Log("TranscriptionService disposed");
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already disposed, ignore
         }
 
         _disposed = true;

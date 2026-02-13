@@ -273,14 +273,14 @@ jobs:
                     $notes = @"
                     # Azure Speech Recognition and Translation $version
 
-                    ## 📦 Downloads
+                    ## Downloads
 
                     **Windows x64 (64-bit Intel/AMD)**
                     - Self-contained build (no .NET Runtime required)
                     - Single executable file with ReadyToRun compilation
                     - Optimized for fast startup without trimming issues
 
-                    ## 🚀 Installation
+                    ## Installation
 
                     1. Download the ZIP file below
                     2. Extract to any folder
@@ -288,14 +288,14 @@ jobs:
                     4. Configure your Azure Speech Services credentials in Settings
                     5. (Optional) Grant microphone permissions in Windows Privacy Settings
 
-                    ## ✨ Features
+                    ## Features
 
                     - **Real-time Speech Recognition**: Convert speech to text using Azure Speech Services
                     - **Multi-language Translation**: Translate recognized speech into multiple languages
                     - **Modern UI**: Built with Avalonia UI
                     - **Secure Credentials**: Encrypted storage for Azure API keys
 
-                    ## 📋 Requirements
+                    ## Requirements
 
                     - **OS**: Windows 11
                     - **Architecture**: x64 (64-bit)
@@ -305,7 +305,7 @@ jobs:
                     - **Microphone**: Required for speech recognition
                     - **Azure Account**: Azure Speech Services subscription (required for operation)
 
-                    ## 🔑 Azure Setup
+                    ## Azure Setup
 
                     Before using this application, you need:
                     1. An active Azure subscription
@@ -314,22 +314,22 @@ jobs:
 
                     Visit [Azure Speech Services](https://azure.microsoft.com/services/cognitive-services/speech-services/) for setup instructions.
 
-                    ## ⚡ Performance
+                    ## Performance
 
                     This build uses **Hybrid approach**:
-                    - ✅ ReadyToRun compilation for 30-40% faster startup
-                    - ✅ No trimming = full compatibility with Azure SDK
-                    - ✅ Optimized garbage collection (Server GC)
-                    - ✅ Tiered compilation for runtime optimization
-                    - ✅ Native library embedding for Azure Speech SDK
+                    - ReadyToRun compilation for 30-40% faster startup
+                    - No trimming = full compatibility with Azure SDK
+                    - Optimized garbage collection (Server GC)
+                    - Tiered compilation for runtime optimization
+                    - Native library embedding for Azure Speech SDK
 
-                    ## 🔒 Security
+                    ## Security
 
                     - **SHA256 Checksum**: Available in artifact details
                     - Verify the hash after download to ensure file integrity
                     - API keys stored using Windows Data Protection API (DPAPI)
 
-                    ## 🐛 Known Issues & Troubleshooting
+                    ## Known Issues & Troubleshooting
 
                     - Ensure microphone permissions are granted in Windows Settings
                     - Verify Azure Speech Services credentials are correct

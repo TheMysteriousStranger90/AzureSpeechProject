@@ -513,4 +513,17 @@
         <Setter Property="TextBlock.Foreground" Value="{DynamicResource AzurePrimaryBlue}" />
     </Style>
 
+    <Style Selector="ToolTip">
+        <Setter Property="Background" Value="{DynamicResource AzurePrimaryBlue}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AzureDarkBlue}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="Foreground" Value="{DynamicResource TextOnPrimaryBrush}" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <Style Selector="ToolTip TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource TextOnPrimaryBrush}" />
+    </Style>
 </Styles>

@@ -1,11 +1,13 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
+using AzureSpeechProject.Constants;
+using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 using NAudio.Wave;
 
 namespace AzureSpeechProject.Services;
 
-public sealed class MicrophonePermissionService : IMicrophonePermissionService
+internal sealed class MicrophonePermissionService : IMicrophonePermissionService
 {
     private readonly ILogger _logger;
 
@@ -82,9 +84,13 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
                 UseShellExecute = true
             });
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.Log($"Failed to open privacy settings: {ex.Message}");
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            _logger.Log($"Win32 error opening privacy settings: {ex.Message}");
         }
 
         return Task.CompletedTask;
@@ -123,7 +129,7 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
                 {
                     using var waveIn = new WaveInEvent
                     {
-                        WaveFormat = new WaveFormat(16000, 1),
+                        WaveFormat = new WaveFormat(AudioConstants.DefaultSampleRate, AudioConstants.DefaultChannels),
                         DeviceNumber = 0,
                         BufferMilliseconds = 100
                     };
@@ -172,7 +178,7 @@ public sealed class MicrophonePermissionService : IMicrophonePermissionService
                         waveIn.StartRecording();
 
                         var receivedDataTask = dataReceivedEvent.Task;
-                        var timeoutTask = Task.Delay(3000, cancellationToken);
+                        var timeoutTask = Task.Delay(TimeoutConstants.MicrophoneTestTimeout, cancellationToken);
                         var completedTask = await Task.WhenAny(receivedDataTask, timeoutTask).ConfigureAwait(false);
 
                         waveIn.StopRecording();

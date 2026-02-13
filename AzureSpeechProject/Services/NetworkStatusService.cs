@@ -1,9 +1,11 @@
 ﻿using System.Net.NetworkInformation;
+using AzureSpeechProject.Constants;
+using AzureSpeechProject.Interfaces;
 using AzureSpeechProject.Logger;
 
 namespace AzureSpeechProject.Services;
 
-public class NetworkStatusService : INetworkStatusService
+internal sealed class NetworkStatusService : INetworkStatusService
 {
     private readonly ILogger _logger;
 
@@ -25,11 +27,6 @@ public class NetworkStatusService : INetworkStatusService
             _logger.Log($"Error checking network connection: {ex.Message}");
             throw;
         }
-        catch (Exception ex)
-        {
-            _logger.Log($"Unexpected error checking network connection: {ex.Message}");
-            throw;
-        }
     }
 
     public async Task<bool> IsInternetAvailableAsync(CancellationToken cancellationToken = default)
@@ -40,7 +37,9 @@ public class NetworkStatusService : INetworkStatusService
 
             using var ping = new Ping();
 
-            var reply = await ping.SendPingAsync("8.8.8.8", 2000).ConfigureAwait(false);
+            var reply = await ping.SendPingAsync(
+                NetworkConstants.ConnectivityTestHost,
+                TimeoutConstants.PingTimeoutMs).ConfigureAwait(false);
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -57,11 +56,6 @@ public class NetworkStatusService : INetworkStatusService
         {
             _logger.Log($"Ping failed - no internet connection: {ex.Message}");
             return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.Log($"Unexpected error checking internet connectivity: {ex.Message}");
-            throw;
         }
     }
 }

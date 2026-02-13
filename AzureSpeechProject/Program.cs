@@ -1,68 +1,62 @@
 ﻿using Avalonia;
 using Avalonia.ReactiveUI;
-using AzureSpeechProject.Logger;
+using AzureSpeechProject.Extensions;
 using AzureSpeechProject.Services;
-using AzureSpeechProject.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
-using FileLogger = AzureSpeechProject.Logger.FileLogger;
 
 namespace AzureSpeechProject;
 
 internal static class Program
 {
+    private static SingleInstanceService? _singleInstance;
     private static ServiceProvider? _serviceProvider;
 
     [STAThread]
-    public static void Main(string[] args)
+    public static int Main(string[] args)
     {
-        var services = new ServiceCollection();
-        ConfigureServices(services);
-        _serviceProvider = services.BuildServiceProvider();
+        _singleInstance = new SingleInstanceService();
+
+        if (!_singleInstance.TryAcquire())
+        {
+            SingleInstanceService.BringExistingInstanceToFront();
+            _singleInstance.Dispose();
+            return 1;
+        }
 
         try
         {
-            BuildAvaloniaApp()
+            var services = new ServiceCollection();
+            ConfigureServices(services);
+            _serviceProvider = services.BuildServiceProvider();
+
+            return BuildAvaloniaApp()
                 .StartWithClassicDesktopLifetime(args);
+        }
+        catch (Exception ex)
+        {
+            File.WriteAllText("crash.log", ex.ToString());
+            throw;
         }
         finally
         {
             _serviceProvider?.Dispose();
+            _singleInstance.Dispose();
         }
-    }
-
-    public static AppBuilder BuildAvaloniaApp()
-    {
-        return AppBuilder.Configure<App>(() => new App(_serviceProvider!))
-            .UsePlatformDetect()
-            .WithInterFont()
-            .LogToTrace()
-            .UseReactiveUI();
     }
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // Services - Singleton
-        services.AddSingleton<ILogger, FileLogger>();
-        services.AddSingleton<ISettingsService, SettingsService>();
-        services.AddSingleton<INetworkStatusService, NetworkStatusService>();
-        services.AddSingleton<IMicrophonePermissionService, MicrophonePermissionService>();
+        services.AddCommonServices();
 
-        // Services - Transient
-        services.AddTransient<ITranscriptFileService, TranscriptFileService>();
+        services.AddCommonViewModels();
 
-        // Audio Services
-        services.AddSingleton<AudioCaptureService>();
-        services.AddSingleton<TranscriptionService>();
-        services.AddSingleton<TranslationService>();
-
-        // ViewModels
-        services.AddTransient<TranscriptionViewModel>();
-        services.AddTransient<SettingsViewModel>();
-        services.AddSingleton<MainWindowViewModel>();
-
-        // Views
-        services.AddTransient<Views.MainWindow>();
-        services.AddTransient<Views.TranscriptionView>();
-        services.AddTransient<Views.SettingsView>();
+        services.AddCommonWindows();
     }
+
+    public static AppBuilder BuildAvaloniaApp()
+        => AppBuilder.Configure(() => new App(_serviceProvider))
+            .UsePlatformDetect()
+            .WithInterFont()
+            .LogToTrace()
+            .UseReactiveUI();
 }

@@ -1,8 +1,8 @@
 ﻿using AzureSpeechProject.Models;
 
-namespace AzureSpeechProject.Services;
+namespace AzureSpeechProject.Interfaces;
 
-public interface ITranscriptFileService
+internal interface ITranscriptFileService
 {
     Task<string> SaveTranscriptAsync(
         TranscriptionDocument transcript,
